@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Cambiar cuenta</title>
+
+    <link rel="stylesheet" href="CambiarCuenta.css">
+</head>
+
+<body>
+    <div class="pagina">
+        <section class="preview">
+            <div class="preview-card">
+                <div
+                    class="banner"
+                    id="previewBanner"
+                ></div>
+
+                <div class="foto-container">
+
+                    <img
+                        id="previewFoto"
+                        src="https://i.pinimg.com/736x/31/53/5f/31535f28a65cb1cbd0bb1f0d6029881e.jpg"
+                        alt="Foto de perfil"
+                    >
+                </div>
+
+                <div class="datos-preview">
+                    <h1 id="previewNombre">
+                        Tu nombre
+                    </h1>
+
+                    <p id="previewUsuario">
+                        @usuario
+                    </p>
+
+                    <p id="previewCorreo">
+                        correo@ejemplo.com
+                    </p>
+                </div>
+
+                <div class="preview-info">
+                    <h3>
+                        Vista previa del perfil
+                    </h3>
+                    <p>
+                        Así se verá tu cuenta después
+                        de realizar los cambios.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="formulario">
+            <div class="form-card">
+                <div class="form-header">
+                    <div>
+                        <p class="mini-title">
+                            MUSIC HUB
+                        </p>
+
+                        <h2>
+                            Cambiar cuenta
+                        </h2>
+
+                        <p class="descripcion">
+                            Modifica la información de tu perfil.
+                        </p>
+
+                    </div>
+                    <button
+                        type="button"
+                        class="volver"
+                        id="btnRegresar"
+                    >
+                        Regresar
+                    </button>
+
+                </div>
+
+                <form id="formCuenta">
+
+                    <div class="fila">
+                        <div class="campo">
+                            <label for="nombre">
+                                Nombre
+                            </label>
+
+                            <input
+                                type="text"
+                                id="nombre"
+                                placeholder="Nombre"
+                            >
+                        </div>
+
+                        <div class="campo">
+
+                            <label for="apellido">
+                                Apellido
+                            </label>
+
+                            <input
+                                type="text"
+                                id="apellido"
+                                placeholder="Apellido"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="campo">
+
+                        <label for="usuario">
+                            Usuario
+                        </label>
+
+                        <input
+                            type="text"
+                            id="usuario"
+                            placeholder="@usuario"
+                        >
+
+                    </div>
+
+                    <div class="campo">
+
+                        <label for="correo">
+                            Correo electrónico
+                        </label>
+
+                        <input
+                            type="email"
+                            id="correo"
+                            placeholder="correo@ejemplo.com"
+                        >
+
+                    </div>
+
+                    <div class="fila">
+
+                        <div class="campo">
+
+                            <label for="nuevaPassword">
+                                Nueva contraseña
+                            </label>
+
+                            <input
+                                type="password"
+                                id="nuevaPassword"
+                                placeholder="Nueva contraseña"
+                            >
+
+                        </div>
+
+                        <div class="campo">
+
+                            <label for="confirmarPassword">
+                                Confirmar contraseña
+                            </label>
+
+                            <input
+                                type="password"
+                                id="confirmarPassword"
+                                placeholder="Confirmar contraseña"
+                            >
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        class="password-rules"
+                        id="passwordRules"
+                    >
+
+                        <p>
+                            La contraseña debe contener:
+                        </p>
+
+                        <span id="reglaLongitud">
+                            ✕ Al menos 8 caracteres
+                        </span>
+
+                        <span id="reglaMayuscula">
+                            ✕ Al menos una mayúscula
+                        </span>
+
+                        <span id="reglaNumero">
+                            ✕ Al menos un número
+                        </span>
+
+                        <span id="reglaEspecial">
+                            ✕ Al menos un carácter especial
+                        </span>
+
+                    </div>
+
+                    <p
+                        id="passwordError"
+                        class="error"
+                    >
+                        Las contraseñas no coinciden.
+                    </p>
+
+                    <div class="campo">
+
+                        <label>
+                            Foto de perfil
+                        </label>
+
+                        <div class="upload-row">
+
+                            <div class="file-name">
+                                Ningún archivo seleccionado
+                            </div>
+
+                            <label
+                                for="foto"
+                                class="upload-button"
+                            >
+                                Subir foto
+                            </label>
+
+                            <input
+                                type="file"
+                                id="foto"
+                                accept="image/*"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="campo">
+                        <label>
+                            Banner
+                        </label>
+
+                        <div class="upload-row">
+                            <div class="file-name">
+                                Ningún archivo seleccionado
+                            </div>
+
+                            <label
+                                for="banner"
+                                class="upload-button"
+                            >
+                                Subir banner
+                            </label>
+
+                            <input
+                                type="file"
+                                id="banner"
+                                accept="image/*"
+                            >
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="guardar"
+                    >
+                        Guardar cambios
+                    </button>
+                </form>
+            </div>
+        </section>
+    </div>
+
+
+    <script src="CambiarCuenta.js"></script>
+
+</body>
+
+</html>

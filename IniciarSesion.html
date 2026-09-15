@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Iniciar sesión</title>
+
+    <link rel="stylesheet" href="Formularios.css">
+    <script src="ValidacionRegistro.js" defer></script>
+</head>
+
+<body class="form-page">
+
+    <div class="form-container">
+
+        <div class="form-header">
+
+            <div class="form-logo">
+                MUSIC HUB
+            </div>
+
+        </div>
+
+
+        <form id="loginForm">
+
+            <div class="input-group">
+
+                <label for="usuario">
+                    USUARIO
+                </label>
+
+                <input
+                    type="text"
+                    id="usuario"
+                    placeholder="Ingresa tu usuario"
+                >
+
+            </div>
+
+
+            <div class="input-group">
+
+                <label for="password">
+                    CONTRASEÑA
+                </label>
+
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Ingresa tu contraseña"
+                >
+
+            </div>
+
+
+            <p id="loginError" class="error-message"></p>
+
+
+            <div class="form-actions">
+
+                <a href="LandingPage.html" class="back-button">
+                    Regresar
+                </a>
+
+                <a href="Home.html" class="submit-button">
+                    Iniciar sesión
+                </a>
+
+            </div>
+
+        </form>
+
+
+        <div class="register-link">
+
+            ¿No tienes cuenta?
+
+            <a href="RegistrarUsuario.html">
+                Registrarse
+            </a>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

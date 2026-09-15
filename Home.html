@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Hub</title>
+    <link rel="stylesheet" href="Home.css">
+</head>
+
+<body>
+    <header class="navbar">
+        <div class="logo">
+            MUSIC HUB
+        </div>
+    </header>
+
+    <div class="app">
+        <aside class="chat-sidebar">
+            <div class="sidebar-title">
+                Chats
+            </div>
+            <div class="chat-list">
+                <button class="chat-icon active"
+                        data-chat="amigos">
+                    <img src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
+                         alt="Amigo">
+                    <span class="chat-tooltip">
+                        Arinator
+                    </span>
+
+                </button>
+
+                <button class="chat-icon"
+                        data-chat="gaming">
+                    <img src="https://i.pinimg.com/1200x/0b/de/25/0bde25514b531ada811674223955fc04.jpg"
+                         alt="Grupo">
+                    <span class="chat-tooltip">
+                        Twenty One Pilots se robo mi radio
+                    </span>
+
+                </button>
+
+                <button class="chat-icon"
+                        data-chat="universidad">
+                    <img src="https://i.pinimg.com/736x/01/39/d9/0139d91c48aeaf302e28121a46093b34.jpg"
+                         alt="Amigo">
+                    <span class="chat-tooltip">
+                        Nedsito
+                    </span>
+
+                </button>
+
+                <button class="chat-icon"
+                        data-chat="proyecto">
+                    <img src="https://i.pinimg.com/1200x/6e/44/81/6e44814a20c65645359c3731e49bbf43.jpg"
+                         alt="Grupo">
+                    <span class="chat-tooltip">
+                        Aquí amamos a Josh Dun
+                    </span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- CHAT CENTRAL -->
+
+        <main class="chat-area">
+            <header class="chat-header">
+                <div class="current-chat">
+                    <img id="currentChatImage"
+                         src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
+                         alt="Chat">
+
+                    <div>
+                        <h2 id="currentChatName">
+                            Amigos
+                        </h2>
+                        <span id="currentChatStatus">
+                            4 integrantes
+                        </span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- MENSAJES -->
+
+            <section class="messages" id="messages">
+                <div class="message received">
+                    <img src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
+                         alt="Arinator">
+                    <div class="message-content">
+                        <strong>
+                            Arinator
+                        </strong>
+                        <p>
+                            Lorem ipsum dolor sit amet
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <div class="message sent">
+                    <div class="message-content">
+                        <p>
+                            Lorem ipsum dolor sit amet
+                        </p>
+                    </div>
+                </div>
+
+                <div class="message received">
+                    <img src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
+                         alt="Arinator">
+                    <div class="message-content">
+                        <strong>
+                            Arinator
+                        </strong>
+                        <p>
+                            Lorem ipsum dolor sit amet
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAREAS -->
+
+            <section class="tasks">
+                <div class="tasks-header">
+                    <h3>
+                        Tareas pendientes
+                    </h3>
+                    <span>
+                        2 tareas
+                    </span>
+                </div>
+
+                <div class="task" id="task1">
+                    <div class="task-info">
+                        <span class="task-number">
+                            1
+                        </span>
+                        <div>
+                            <strong>
+                                Vota por Tweny One Pilots en los VMAs
+                            </strong>
+                            <p>
+                                Hazlo no seas gacho
+                            </p>
+                        </div>
+                    </div>
+                    <a href="https://t.co/154OLE5e6M"
+                       target="_blank"
+                       class="task-link"
+                       data-task="task1">
+                        Abrir enlace
+                    </a>
+                    <span class="task-status">
+                        Pendiente
+                    </span>
+                </div>
+
+                <div class="task" id="task2">
+                    <div class="task-info">
+                        <span class="task-number">
+                            2
+                        </span>
+                        <div>
+                            <strong>
+                                Entra a la playlist del grupo
+                            </strong>
+                            <p>
+                                Esta muy chida la hice yo :)
+                            </p>
+                        </div>
+                    </div>
+                    <a href="https://open.spotify.com/playlist/7jyxu1xZluI1bRl2WbkluO?si=3a1aa91e8c734b99"
+                       target="_blank"
+                       class="task-link"
+                       data-task="task2">
+                        Abrir enlace
+                    </a>
+                    <span class="task-status">
+                        Pendiente
+                    </span>
+                </div>
+            </section>
+
+            <div class="message-input">
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Escribe un mensaje..."
+                >
+                <button id="sendButton">
+                    Enviar
+                </button>
+            </div>
+        </main>
+
+        <!-- PERFIL -->
+
+        <aside class="profile">
+
+            <div class="profile-top">
+
+                <div class="profile-title">
+                    Mi perfil
+                </div>
+
+
+                <a href="CambiarCuenta.html" class="change-profile">
+                    Cambiar Perfil
+                </a>
+
+            </div>
+
+            <div class="profile-banner">
+                <img
+                    class="profile-picture"
+                    src="https://i.pinimg.com/1200x/9e/bf/8f/9ebf8f5715c39cd5181558d11c1fb958.jpg"
+                    alt="Foto de perfil"
+                >
+            </div>
+
+            <div class="profile-info">
+                <h2>
+                    Tyler Joseph
+                </h2>
+                <p class="username">
+                    @tykitty
+                </p>
+            </div>
+
+            <!-- Coleccion -->
+
+            <div class="pokemon-card-section">
+                <h3>
+                    Mi colección
+                </h3>
+                <div class="pokemon-display">
+                    <button class="pokemon-card"
+                            data-card="0">
+                        <img
+                            src="https://i.pinimg.com/736x/48/62/47/486247923ba212d2f45d47ff1b81f69d.jpg"
+                            alt="Alcremie"
+                        >
+                    </button>
+                    <button class="pokemon-card"
+                            data-card="1">
+                        <img
+                            src="https://i.pinimg.com/736x/78/41/23/784123912a27a92f01d8597d1d32b069.jpg"
+                            alt="Clefairy"
+                        >
+                    </button>
+                    <button class="pokemon-card"
+                            data-card="2">
+                        <img
+                            src="https://i.pinimg.com/736x/a4/6e/fc/a46efc5422e919ce3c8176ab3a543785.jpg"
+                            alt="Sylveon"
+                        >
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Modal cartas -->
+
+    <div class="card-modal" id="cardModal">
+        <div class="card-modal-content">
+            <button class="close-card"
+                    id="closeCard">
+                ×
+            </button>
+
+            <button class="card-navigation previous"
+                    id="previousCard">
+                ‹
+            </button>
+
+            <div class="large-card-container">
+                <img
+                    id="largeCard"
+                    src=""
+                    alt="Carta Pokémon"
+                >
+            </div>
+            <button class="card-navigation next"
+                    id="nextCard">
+                ›
+            </button>
+
+            <div class="card-indicators">
+
+                <span class="card-indicator active"
+                      data-indicator="0">
+                </span>
+
+                <span class="card-indicator"
+                      data-indicator="1">
+                </span>
+
+                <span class="card-indicator"
+                      data-indicator="2">
+                </span>
+            </div>
+        </div>
+    </div>
+    <script src="Home.js"></script>
+</body>
+</html>
