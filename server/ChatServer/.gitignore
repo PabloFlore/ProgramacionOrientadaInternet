@@ -1,0 +1,8 @@
+# Base de datos local de SQLite (no debe subirse al repositorio)
+chat.db
+chat.db-shm
+chat.db-wal
+
+# Carpetas de compilacion
+bin/
+obj/

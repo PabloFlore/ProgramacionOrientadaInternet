@@ -27,14 +27,15 @@
 
             <div class="input-group">
 
-                <label for="usuario">
-                    USUARIO
+                <label for="correo">
+                    CORREO
                 </label>
 
                 <input
-                    type="text"
-                    id="usuario"
-                    placeholder="Ingresa tu usuario"
+                    type="email"
+                    id="correo"
+                    placeholder="Ingresa tu correo"
+                    autocomplete="username"
                 >
 
             </div>
@@ -50,6 +51,7 @@
                     type="password"
                     id="password"
                     placeholder="Ingresa tu contraseña"
+                    autocomplete="current-password"
                 >
 
             </div>
@@ -64,9 +66,12 @@
                     Regresar
                 </a>
 
-                <a href="Home.html" class="submit-button">
+                <button
+                    type="submit"
+                    id="loginButton"
+                    class="submit-button">
                     Iniciar sesión
-                </a>
+                </button>
 
             </div>
 

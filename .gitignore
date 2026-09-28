@@ -1,1 +1,10 @@
 .vs/
+
+# Base de datos local de SQLite (correos, hashes y sales de usuarios)
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Node / Vite (experimento React, no se versiona: Home.html es el canónico)
+client/

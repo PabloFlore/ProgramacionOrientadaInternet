@@ -6,6 +6,9 @@ const correo = document.getElementById("correo");
 const nuevaPassword =
     document.getElementById("nuevaPassword");
 
+const passwordActual =
+    document.getElementById("passwordActual");
+
 const confirmarPassword =
     document.getElementById("confirmarPassword");
 
@@ -182,10 +185,17 @@ banner.addEventListener(
 
 // VALIDACIONES CONTRASEÑA
 
+/* La contraseña es OPCIONAL: si el campo queda vacío no se toca
+   nada. Solo se valida cuando el usuario quiere cambiarla. */
 function validarPassword() {
 
     const password =
         nuevaPassword.value;
+
+    if (password.length === 0) {
+        passwordRules.style.display = "none";
+        return true;
+    }
 
     const tieneLongitud =
         password.length >= 8;
@@ -198,16 +208,11 @@ function validarPassword() {
 
     const tieneEspecial =
         /[^A-Za-z0-9]/.test(password);
-
     if (password.length > 0) {
 
         passwordRules.style.display =
             "flex";
 
-    } else {
-
-        passwordRules.style.display =
-            "none";
     }
 
     const reglaLongitud =
@@ -346,34 +351,154 @@ confirmarPassword.addEventListener(
 );
 
 // GUARDAR CAMBIOS
+
+const API_CUENTA =
+    `http://${window.location.hostname || "localhost"}:5000`;
+
+const CLAVE_SESION = "musicHubUsuario";
+
+function leerSesion() {
+    try {
+        return JSON.parse(
+            sessionStorage.getItem(CLAVE_SESION)
+        );
+    } catch (error) {
+        return null;
+    }
+}
+
+async function pedir(url, metodo, cuerpo) {
+    const respuesta = await fetch(url, {
+        method: metodo,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpo)
+    });
+
+    let datos = {};
+
+    try {
+        datos = await respuesta.json();
+    } catch (error) {
+        datos = {};
+    }
+
+    if (!respuesta.ok) {
+        throw new Error(
+            datos.Error || "Ocurrio un error. Intenta de nuevo."
+        );
+    }
+
+    return datos;
+}
+
+/* Sin sesión no se edita el perfil. */
+const sesion = leerSesion();
+
+if (!sesion) {
+    window.location.href = "IniciarSesion.html";
+} else {
+    /* Se precarga el formulario con los datos de la cuenta. */
+    nombre.value = sesion.Nombre || "";
+    apellido.value = sesion.Apellido || "";
+    usuario.value = sesion.Usuario || "";
+    correo.value = sesion.Correo || "";
+
+    actualizarNombre();
+    previewUsuario.textContent =
+        "@" + (sesion.Usuario || "usuario");
+    previewCorreo.textContent = sesion.Correo || "";
+}
+
 formCuenta.addEventListener(
     "submit",
-    function (event) {
+    async function (event) {
         event.preventDefault();
 
-        const passwordCorrecta =
-            validarPassword();
+        passwordError.style.display = "none";
 
-        const confirmacionCorrecta =
-            validarConfirmacion();
+        if (!sesion) {
+            return;
+        }
 
-        if (!passwordCorrecta) {
-            alert(
-                "La contraseña no cumple con todos los requisitos."
+        const nombreValor = nombre.value.trim();
+        const apellidoValor = apellido.value.trim();
+        const usuarioValor = usuario.value.trim();
+        const correoValor = correo.value.trim();
+
+        if (nombreValor === "" || apellidoValor === "" ||
+            usuarioValor === "" || correoValor === "")
+        {
+            passwordError.style.display = "block";
+            passwordError.textContent =
+                "Completa todos los campos.";
+            return;
+        }
+
+        if (!validarPassword()) {
+            passwordError.style.display = "block";
+            passwordError.textContent =
+                "La contraseña no cumple con todos los requisitos.";
+            return;
+        }
+
+        if (!validarConfirmacion()) {
+            return;
+        }
+
+        try {
+            /* 1) Perfil */
+            const perfil = await pedir(
+                `${API_CUENTA}/api/cuenta`,
+                "PATCH",
+                {
+                    correoActual: sesion.Correo,
+                    nombre: nombreValor,
+                    apellido: apellidoValor,
+                    usuario: usuarioValor,
+                    correo: correoValor
+                }
             );
-            return;
+
+            /* La sesión se actualiza con lo que devolvió el
+               servidor, por si cambió el correo. */
+            sessionStorage.setItem(
+                CLAVE_SESION,
+                JSON.stringify(perfil)
+            );
+
+            /* 2) Contraseña (solo si escribió una nueva) */
+            if (nuevaPassword.value !== "") {
+
+                if (passwordActual.value === "") {
+                    passwordError.style.display = "block";
+                    passwordError.textContent =
+                        "Escribe tu contraseña actual para " +
+                        "cambiarla.";
+                    return;
+                }
+
+                await pedir(
+                    `${API_CUENTA}/api/cuenta/contrasena`,
+                    "PATCH",
+                    {
+                        correo: perfil.Correo,
+                        contrasenaActual: passwordActual.value,
+                        contrasenaNueva: nuevaPassword.value
+                    }
+                );
+
+            }
+
+            cambiosGuardados = true;
+
+            alert("Datos guardados con éxito.");
+
+            window.location.href = "Home.html";
+
+        } catch (error) {
+            passwordError.style.display = "block";
+            passwordError.textContent = error.message;
         }
-
-        if (!confirmacionCorrecta) {
-            return;
-        }
-
-        // Aquí luego ira el envio a la base de datos.
-
-        cambiosGuardados = true;
-        alert(
-            "Datos guardados con éxito."
-        );
     }
 );
 
