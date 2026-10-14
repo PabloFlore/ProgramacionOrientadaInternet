@@ -736,3 +736,50 @@ body {
     right: 0;
     }
 }
+
+/* -------------------- SESIÓN / ERRORES -------------------- */
+
+.sesion-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 20px 0;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.sesion-inline strong {
+    color: var(--text);
+}
+
+.sesion-inline button {
+    margin-left: auto;
+    border: 1px solid var(--border);
+    background: var(--surface-strong);
+    color: var(--text);
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.sesion-inline button:hover {
+    background: var(--pink);
+    color: #fff;
+    border-color: var(--pink);
+}
+
+.alias-inline-error {
+    min-height: 18px;
+    margin: 6px 20px 0;
+    font-size: 13px;
+    color: #c0392b;
+}
+
+.msg-time {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--muted);
+}
