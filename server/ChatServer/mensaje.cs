@@ -11,4 +11,6 @@ public class Mensaje
     public string Texto { get; set; } = "";
 
     public DateTime FechaEnvio { get; set; }
+
+    public int? UsuarioId { get; set; }
 }

@@ -128,6 +128,62 @@ public static class UsuariosBd
             return null;
         }
 
+        return LeerUsuario(lector);
+    }
+
+    public static Usuario? BuscarPorId(int id)
+    {
+        using var conexion = new SqliteConnection(CadenaConexion);
+        conexion.Open();
+
+        using var comando = conexion.CreateCommand();
+        comando.CommandText = @"
+            SELECT Id, Nombre, Apellido, Usuario, Correo,
+                   HashContrasena, Sal, FechaRegistro
+            FROM Usuarios
+            WHERE Id = $id
+            LIMIT 1;
+        ";
+        comando.Parameters.AddWithValue("$id", id);
+
+        using var lector = comando.ExecuteReader();
+        if (!lector.Read())
+        {
+            return null;
+        }
+
+        return LeerUsuario(lector);
+    }
+
+    /// <summary>Todos los usuarios excepto uno (para elegir contacto).</summary>
+    public static List<Usuario> Listar(int excluirId)
+    {
+        using var conexion = new SqliteConnection(CadenaConexion);
+        conexion.Open();
+
+        using var comando = conexion.CreateCommand();
+        comando.CommandText = @"
+            SELECT Id, Nombre, Apellido, Usuario, Correo,
+                   HashContrasena, Sal, FechaRegistro
+            FROM Usuarios
+            WHERE Id <> $excluir
+            ORDER BY Nombre, Apellido;
+        ";
+        comando.Parameters.AddWithValue("$excluir", excluirId);
+
+        var lista = new List<Usuario>();
+
+        using var lector = comando.ExecuteReader();
+        while (lector.Read())
+        {
+            lista.Add(LeerUsuario(lector));
+        }
+
+        return lista;
+    }
+
+    private static Usuario LeerUsuario(SqliteDataReader lector)
+    {
         return new Usuario
         {
             Id = lector.GetInt32(0),

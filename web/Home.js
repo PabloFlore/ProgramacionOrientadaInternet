@@ -35,6 +35,10 @@ if (!sesionUsuario) {
     window.location.href = "IniciarSesion.html";
 }
 
+/* Token opaco emitido en el login. Viaja al hub (access_token) y a la
+   API (Authorization: Bearer). */
+const token = sesionUsuario ? (sesionUsuario.Token || "") : "";
+
 /* -------------------- Datos de los chats (barra lateral) -------------------- */
 
 const chats = {
@@ -74,6 +78,41 @@ const sesionLabel = document.getElementById("sesionUsuario");
 const logoutButton = document.getElementById("logoutButton");
 const aliasError = document.getElementById("aliasError");
 
+/* Mensajes privados */
+const privateList = document.getElementById("privateList");
+const contactsList = document.getElementById("contactsList");
+const newDmButton = document.getElementById("newDmButton");
+
+const AVATAR_POR_DEFECTO =
+    "https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg";
+
+/* Metadata de los chats privados abiertos (chatId -> {name,status,image}) */
+const chatsPrivados = {};
+
+function chatPrivadoId(a, b) {
+    const menor = Math.min(a, b);
+    const mayor = Math.max(a, b);
+    return `dm:${menor}:${mayor}`;
+}
+
+function metaDeChat(chatId) {
+    return chats[chatId] || chatsPrivados[chatId] || {
+        name: "Conversación",
+        status: "",
+        image: AVATAR_POR_DEFECTO
+    };
+}
+
+function marcarActivo(elemento) {
+    document
+        .querySelectorAll(".chat-icon, .private-item")
+        .forEach(item => item.classList.remove("active"));
+
+    if (elemento) {
+        elemento.classList.add("active");
+    }
+}
+
 /* -------------------- Estado -------------------- */
 
 /* El alias ahora es el nombre de la cuenta con la que se inició
@@ -103,7 +142,16 @@ if (profileUsername && sesionUsuario) {
 }
 
 if (logoutButton) {
-    logoutButton.addEventListener("click", () => {
+    logoutButton.addEventListener("click", async () => {
+        try {
+            await fetch(`${SERVER_URL}/api/logout`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+        } catch (error) {
+            /* Aunque falle, la sesión local se borra igual. */
+        }
+
         sessionStorage.removeItem(CLAVE_SESION);
         window.location.href = "IniciarSesion.html";
     });
@@ -116,7 +164,10 @@ async function cargarHistorial(chatId) {
 
     try {
         const respuesta = await fetch(
-            `${SERVER_URL}/api/mensajes?chatId=${encodeURIComponent(chatId)}&limite=100`
+            `${SERVER_URL}/api/mensajes?chatId=${encodeURIComponent(chatId)}&limite=100`,
+            {
+                headers: { "Authorization": `Bearer ${token}` }
+            }
         );
 
         if (!respuesta.ok) {
@@ -159,7 +210,9 @@ async function conectar() {
 
     try {
         const hub = new signalR.HubConnectionBuilder()
-            .withUrl(`${SERVER_URL}/chat`)
+            .withUrl(`${SERVER_URL}/chat`, {
+                accessTokenFactory: () => token
+            })
             .build();
 
         hub.on("ReceiveMessage", (user, message, time, chatId) => {
@@ -167,6 +220,9 @@ async function conectar() {
                descarta. Evita que caiga en el chat equivocado
                durante el cambio de canal. */
             if (chatId && chatId !== currentChatId) {
+                if (chatId.startsWith("dm:")) {
+                    cargarConversaciones();
+                }
                 return;
             }
 
@@ -185,6 +241,7 @@ async function conectar() {
         /* Unirse al canal del primer chat y traer su historial */
         await connection.invoke("JoinGroup", currentChatId);
         await cargarHistorial(currentChatId);
+        await cargarConversaciones();
 
         messageInput.disabled = false;
         sendButton.disabled = false;
@@ -199,34 +256,169 @@ async function conectar() {
     }
 }
 
-/* -------------------- Cambio de chat (canal) -------------------- */
+/* -------------------- Cambio de chat (canal o privado) -------------------- */
+
+async function abrirChat(chatId, meta) {
+    if (meta) {
+        chatsPrivados[chatId] = meta;
+    }
+
+    const info = metaDeChat(chatId);
+
+    currentChatName.textContent = info.name;
+    currentChatStatus.textContent = info.status;
+    currentChatImage.src = info.image;
+
+    if (connection && chatId !== currentChatId) {
+        try {
+            await connection.invoke("LeaveGroup", currentChatId);
+            await connection.invoke("JoinGroup", chatId);
+        } catch (error) {
+            console.error("Error al cambiar de chat:", error);
+        }
+    }
+
+    currentChatId = chatId;
+
+    await cargarHistorial(chatId);
+}
 
 chatButtons.forEach(button => {
-    button.addEventListener("click", async () => {
+    button.addEventListener("click", () => {
         const chatId = button.dataset.chat;
         if (!chats[chatId]) return;
 
-        chatButtons.forEach(item => item.classList.remove("active"));
-        button.classList.add("active");
-
-        currentChatName.textContent = chats[chatId].name;
-        currentChatStatus.textContent = chats[chatId].status;
-        currentChatImage.src = chats[chatId].image;
-
-        if (connection && chatId !== currentChatId) {
-            try {
-                await connection.invoke("LeaveGroup", currentChatId);
-                await connection.invoke("JoinGroup", chatId);
-            } catch (error) {
-                console.error("Error al cambiar de canal:", error);
-            }
-        }
-
-        currentChatId = chatId;
-
-        await cargarHistorial(chatId);
+        marcarActivo(button);
+        abrirChat(chatId, chats[chatId]);
     });
 });
+
+/* -------------------- Mensajes privados -------------------- */
+
+async function cargarConversaciones() {
+    if (!token || !privateList) return;
+
+    try {
+        const respuesta = await fetch(
+            `${SERVER_URL}/api/conversaciones`,
+            {
+                headers: { "Authorization": `Bearer ${token}` }
+            }
+        );
+
+        if (!respuesta.ok) return;
+
+        const datos = await respuesta.json();
+
+        privateList.innerHTML = "";
+
+        for (const conversacion of datos.Conversaciones) {
+            chatsPrivados[conversacion.ChatId] = {
+                name: conversacion.OtroNombre || "Usuario",
+                status: "Conversación privada",
+                image: AVATAR_POR_DEFECTO
+            };
+
+            const boton = document.createElement("button");
+            boton.type = "button";
+            boton.className = "private-item";
+            boton.dataset.chat = conversacion.ChatId;
+            boton.innerHTML = `
+                <span class="private-name">${escapeHtml(conversacion.OtroNombre || "Usuario")}</span>
+                <span class="private-preview">${escapeHtml(conversacion.UltimoMensaje || "")}</span>
+            `;
+
+            if (conversacion.ChatId === currentChatId) {
+                boton.classList.add("active");
+            }
+
+            boton.addEventListener("click", () => {
+                marcarActivo(boton);
+                abrirChat(
+                    conversacion.ChatId,
+                    chatsPrivados[conversacion.ChatId]
+                );
+            });
+
+            privateList.appendChild(boton);
+        }
+    } catch (error) {
+        console.error(
+            "No se pudieron cargar las conversaciones:",
+            error
+        );
+    }
+}
+
+async function cargarContactos() {
+    if (!token || !contactsList) return;
+
+    try {
+        const respuesta = await fetch(
+            `${SERVER_URL}/api/usuarios`,
+            {
+                headers: { "Authorization": `Bearer ${token}` }
+            }
+        );
+
+        if (!respuesta.ok) return;
+
+        const datos = await respuesta.json();
+
+        contactsList.innerHTML = "";
+
+        if (!datos.Usuarios || datos.Usuarios.length === 0) {
+            contactsList.innerHTML =
+                `<div class="contact-empty">No hay otros usuarios.</div>`;
+            return;
+        }
+
+        for (const contacto of datos.Usuarios) {
+            const boton = document.createElement("button");
+            boton.type = "button";
+            boton.className = "contact-item";
+            boton.innerHTML = `
+                <span class="contact-name">${escapeHtml(contacto.Nombre || "Usuario")}</span>
+                <span class="contact-user">@${escapeHtml(contacto.Usuario || "")}</span>
+            `;
+
+            boton.addEventListener("click", () => {
+                const chatId = chatPrivadoId(
+                    sesionUsuario.Id,
+                    contacto.Id
+                );
+
+                const meta = {
+                    name: contacto.Nombre || "Usuario",
+                    status: "Conversación privada",
+                    image: AVATAR_POR_DEFECTO
+                };
+
+                chatsPrivados[chatId] = meta;
+                contactsList.setAttribute("hidden", "");
+                marcarActivo(null);
+                abrirChat(chatId, meta);
+            });
+
+            contactsList.appendChild(boton);
+        }
+    } catch (error) {
+        console.error("No se pudieron cargar los contactos:", error);
+    }
+}
+
+if (newDmButton && contactsList) {
+    newDmButton.addEventListener("click", async () => {
+        const oculto = contactsList.hasAttribute("hidden");
+
+        if (oculto) {
+            await cargarContactos();
+            contactsList.removeAttribute("hidden");
+        } else {
+            contactsList.setAttribute("hidden", "");
+        }
+    });
+}
 
 /* -------------------- Enviar mensaje (al canal actual) -------------------- */
 
@@ -243,16 +435,20 @@ async function sendMessage() {
     if (!text || !connection) return;
 
     try {
-        /* El hub guarda en SQLite y solo después retransmite. */
+        /* El hub guarda en SQLite (ligado al perfil autenticado)
+           y solo después retransmite. */
         await connection.invoke(
             "SendToGroup",
             currentChatId,
-            alias,
             text
         );
 
         renderSent(text);
         messageInput.value = "";
+
+        if (currentChatId.startsWith("dm:")) {
+            cargarConversaciones();
+        }
 
     } catch (error) {
         console.error("No se pudo enviar:", error);
@@ -278,6 +474,10 @@ function renderIncoming(user, message, time) {
     if (!currentChatId) return;
     if (user === alias) return;
 
+    /* Si el usuario está leyendo mensajes de arriba, no lo forzamos
+       a bajar; solo auto-scrolleamos si ya estaba cerca del fondo. */
+    const seguirFondo = estaCercaDelFondo();
+
     const container = document.createElement("div");
     container.className = "message received";
     container.innerHTML = `
@@ -289,7 +489,19 @@ function renderIncoming(user, message, time) {
         </div>
     `;
     messagesContainer.appendChild(container);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    if (seguirFondo) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+}
+
+/* ¿La lista está (casi) abajo del todo? Se usa para decidir si un
+   mensaje nuevo debe arrastrar el scroll o respetar la posición del
+   usuario que está leyendo hacia arriba. */
+function estaCercaDelFondo(margen = 60) {
+    return messagesContainer.scrollHeight
+        - messagesContainer.scrollTop
+        - messagesContainer.clientHeight <= margen;
 }
 
 function escapeHtml(str) {

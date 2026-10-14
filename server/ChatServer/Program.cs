@@ -50,12 +50,10 @@ var WebRaiz = BuscarCarpetaWeb();
 
 /* Mientras se desarrolla nunca se debe cachear: si no, el navegador y el
    celular siguen mostrando el HTML/JS/CSS viejo aunque el código ya haya
-   cambiado ( fue lo que dejó el botón de alias y el nombre "Tyler Joseph"
-   apareciendo en pantalla ). Se exceptúa /hubs para no tocar el handshake
-   de SignalR. */
+   cambiado. Se exceptúa /chat para no tocar el handshake de SignalR. */
 app.Use(async (contexto, siguiente) =>
 {
-    if (!contexto.Request.Path.StartsWithSegments("/hubs"))
+    if (!contexto.Request.Path.StartsWithSegments("/chat"))
     {
         contexto.Response.OnStarting(() =>
         {
@@ -112,6 +110,50 @@ string BuscarCarpetaWeb()
 }
 
 app.MapHub<ChatHub>("/chat");
+
+/* ======================= AUTENTICACIÓN POR TOKEN ======================= */
+
+/* El token viaja en Authorization: Bearer <token>. Con él se resuelve
+   el usuario de la sesión: los endpoints ya no confían en datos que
+   mande el cliente (como CorreoActual). */
+string? TokenDe(HttpContext contexto)
+{
+    var encabezado =
+        contexto.Request.Headers.Authorization.ToString();
+
+    if (encabezado.StartsWith(
+            "Bearer ",
+            StringComparison.OrdinalIgnoreCase))
+    {
+        return encabezado.Substring("Bearer ".Length).Trim();
+    }
+
+    return null;
+}
+
+Usuario? UsuarioAutenticado(HttpContext contexto)
+{
+    var token = TokenDe(contexto);
+
+    if (string.IsNullOrWhiteSpace(token))
+    {
+        return null;
+    }
+
+    var id = SesionesBd.ObtenerUsuarioId(token);
+
+    if (id is null)
+    {
+        return null;
+    }
+
+    return UsuariosBd.BuscarPorId(id.Value);
+}
+
+IResult SinSesion() =>
+    Results.Json(
+        new { Error = "Sesión no válida. Inicia sesión de nuevo." },
+        statusCode: StatusCodes.Status401Unauthorized);
 
 /* ======================= REGISTRO Y LOGIN (SQLite) ======================= */
 
@@ -196,7 +238,7 @@ app.MapPost("/api/registrar", (RegistroRequest peticion) =>
         });
 });
 
-/* .../api/login — entra con correo + contraseña */
+/* .../api/login — entra con correo + contraseña y emite un token */
 app.MapPost("/api/login", (LoginRequest peticion) =>
 {
     var correo =
@@ -223,31 +265,123 @@ app.MapPost("/api/login", (LoginRequest peticion) =>
             statusCode: StatusCodes.Status401Unauthorized);
     }
 
+    var token = SesionesBd.Crear(usuario.Id);
+
     return Results.Ok(new
     {
+        Id = usuario.Id,
         Nombre = usuario.Nombre,
         Apellido = usuario.Apellido,
         Usuario = usuario.NombreUsuario,
-        Correo = usuario.Correo
+        Correo = usuario.Correo,
+        Token = token
     });
 });
 
-/* .../api/mensajes?chatId=amigos — historial guardado de un canal */
-app.MapGet("/api/mensajes", (string? chatId, int? limite) =>
+/* .../api/logout — invalida el token de la sesión actual */
+app.MapPost("/api/logout", (HttpContext contexto) =>
 {
+    var token = TokenDe(contexto);
+
+    if (!string.IsNullOrWhiteSpace(token))
+    {
+        SesionesBd.Eliminar(token);
+    }
+
+    return Results.Ok(new { Mensaje = "Sesión cerrada." });
+});
+
+/* .../api/usuarios — contacto para iniciar una conversación privada */
+app.MapGet("/api/usuarios", (HttpContext contexto) =>
+{
+    var usuario = UsuarioAutenticado(contexto);
+
+    if (usuario is null)
+    {
+        return SinSesion();
+    }
+
+    var lista = UsuariosBd.Listar(usuario.Id);
+
+    return Results.Ok(new
+    {
+        Usuarios = lista.Select(u => new
+        {
+            u.Id,
+            Nombre = u.NombreCompleto,
+            Usuario = u.NombreUsuario
+        })
+    });
+});
+
+/* .../api/conversaciones — privadas del usuario con su último mensaje */
+app.MapGet("/api/conversaciones", (HttpContext contexto) =>
+{
+    var usuario = UsuarioAutenticado(contexto);
+
+    if (usuario is null)
+    {
+        return SinSesion();
+    }
+
+    var conversaciones =
+        MensajesBd.ObtenerConversaciones(usuario.Id);
+
+    var resultado = new List<object>();
+
+    foreach (var conversacion in conversaciones)
+    {
+        var otro = UsuariosBd.BuscarPorId(
+            conversacion.OtroUsuarioId);
+
+        resultado.Add(new
+        {
+            conversacion.ChatId,
+            OtroUsuarioId = conversacion.OtroUsuarioId,
+            OtroNombre = otro?.NombreCompleto ?? "Usuario",
+            OtroUsuario = otro?.NombreUsuario ?? "",
+            conversacion.UltimoMensaje,
+            UltimaFecha = conversacion.UltimaFecha.ToString("o"),
+            conversacion.UltimoUsuarioId
+        });
+    }
+
+    return Results.Ok(new { Conversaciones = resultado });
+});
+
+/* .../api/mensajes?chatId=amigos — historial guardado de un canal.
+   En conversaciones privadas solo puede leer un participante. */
+app.MapGet("/api/mensajes",
+    (HttpContext contexto, string? chatId, int? limite) =>
+{
+    var usuario = UsuarioAutenticado(contexto);
+
+    if (usuario is null)
+    {
+        return SinSesion();
+    }
+
     if (string.IsNullOrWhiteSpace(chatId))
     {
-        return Results.BadRequest(
-            new { Error = "Falta el chatId." });
+        return Results.BadRequest(new { Error = "Falta el chatId." });
+    }
+
+    var chat = chatId.Trim();
+
+    if (!MensajesBd.EsParticipante(chat, usuario.Id))
+    {
+        return Results.Json(
+            new { Error = "No perteneces a esa conversación." },
+            statusCode: StatusCodes.Status403Forbidden);
     }
 
     var historial = MensajesBd.ObtenerPorChat(
-        chatId.Trim(),
+        chat,
         limite ?? 100);
 
     return Results.Ok(new
     {
-        ChatId = chatId.Trim(),
+        ChatId = chat,
         Total = historial.Count,
         Mensajes = historial.Select(m => new
         {
@@ -255,21 +389,22 @@ app.MapGet("/api/mensajes", (string? chatId, int? limite) =>
             m.Usuario,
             Texto = m.Texto,
             Hora = m.FechaEnvio.ToString("HH:mm:ss"),
-            Fecha = m.FechaEnvio.ToString("o")
+            Fecha = m.FechaEnvio.ToString("o"),
+            m.UsuarioId
         })
     });
 });
 
-/* .../api/cuenta — actualiza el perfil (CambiarCuenta.html).
-   La cuenta se localiza por CorreoActual (el de la sesión), porque
-   el propio formulario puede estar cambiando ese mismo campo. */
-app.MapPatch("/api/cuenta", (ActualizarPerfilRequest peticion) =>
+/* .../api/cuenta — actualiza el perfil de la sesión autenticada. */
+app.MapPatch("/api/cuenta",
+    (HttpContext contexto, ActualizarPerfilRequest peticion) =>
 {
-    var correoActual =
-        peticion.CorreoActual?.Trim() ?? "";
+    var actual = UsuarioAutenticado(contexto);
 
-    var correo =
-        peticion.Correo?.Trim() ?? "";
+    if (actual is null)
+    {
+        return SinSesion();
+    }
 
     var nombre =
         peticion.Nombre?.Trim() ?? "";
@@ -280,25 +415,20 @@ app.MapPatch("/api/cuenta", (ActualizarPerfilRequest peticion) =>
     var usuario =
         peticion.Usuario?.Trim() ?? "";
 
-    if (correoActual == "" || nombre == "" ||
-        apellido == "" || usuario == "" || correo == "")
+    var correo =
+        peticion.Correo?.Trim() ?? "";
+
+    if (nombre == "" || apellido == "" ||
+        usuario == "" || correo == "")
     {
         return Results.BadRequest(
             new { Error = "Completa todos los campos." });
     }
 
-    if (!patronCorreo.IsMatch(correo))
+    if (correo.Length > 254 || !patronCorreo.IsMatch(correo))
     {
         return Results.BadRequest(
             new { Error = "El correo no tiene un formato válido." });
-    }
-
-    var actual = UsuariosBd.BuscarPorCorreo(correoActual);
-
-    if (actual is null)
-    {
-        return Results.NotFound(
-            new { Error = "No existe una cuenta con ese correo." });
     }
 
     if (!UsuariosBd.ActualizarPerfil(
@@ -317,18 +447,22 @@ app.MapPatch("/api/cuenta", (ActualizarPerfilRequest peticion) =>
     });
 });
 
-/* .../api/cuenta/contrasena — exige la contraseña actual */
+/* .../api/cuenta/contrasena — exige la contraseña actual de la sesión. */
 app.MapPatch("/api/cuenta/contrasena",
-    (CambiarContrasenaRequest peticion) =>
+    (HttpContext contexto, CambiarContrasenaRequest peticion) =>
 {
-    var correo =
-        peticion.Correo?.Trim() ?? "";
+    var usuario = UsuarioAutenticado(contexto);
+
+    if (usuario is null)
+    {
+        return SinSesion();
+    }
 
     var actual = peticion.ContrasenaActual ?? "";
 
     var nueva = peticion.ContrasenaNueva ?? "";
 
-    if (correo == "" || actual == "" || nueva == "")
+    if (actual == "" || nueva == "")
     {
         return Results.BadRequest(
             new { Error = "Completa todos los campos." });
@@ -345,13 +479,10 @@ app.MapPatch("/api/cuenta/contrasena",
                 "una mayúscula, un número y un símbolo." });
     }
 
-    var usuario = UsuariosBd.BuscarPorCorreo(correo);
-
-    if (usuario is null ||
-        !UsuariosBd.VerificarContrasena(
-            actual,
-            usuario.HashContrasena,
-            usuario.Sal))
+    if (!UsuariosBd.VerificarContrasena(
+        actual,
+        usuario.HashContrasena,
+        usuario.Sal))
     {
         return Results.Json(
             new { Error = "La contraseña actual es incorrecta." },
@@ -385,13 +516,11 @@ public record LoginRequest(
     string? Contrasena);
 
 public record ActualizarPerfilRequest(
-    string? CorreoActual,
     string? Nombre,
     string? Apellido,
     string? Usuario,
     string? Correo);
 
 public record CambiarContrasenaRequest(
-    string? Correo,
     string? ContrasenaActual,
     string? ContrasenaNueva);

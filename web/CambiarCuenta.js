@@ -370,7 +370,10 @@ function leerSesion() {
 async function pedir(url, metodo, cuerpo) {
     const respuesta = await fetch(url, {
         method: metodo,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${sesion.Token || ""}`
+        },
         body: JSON.stringify(cuerpo)
     });
 
@@ -451,7 +454,6 @@ formCuenta.addEventListener(
                 `${API_CUENTA}/api/cuenta`,
                 "PATCH",
                 {
-                    correoActual: sesion.Correo,
                     nombre: nombreValor,
                     apellido: apellidoValor,
                     usuario: usuarioValor,
@@ -459,11 +461,15 @@ formCuenta.addEventListener(
                 }
             );
 
-            /* La sesión se actualiza con lo que devolvió el
-               servidor, por si cambió el correo. */
+            /* La sesión se actualiza conservando el token. */
+            sesion.Nombre = perfil.Nombre;
+            sesion.Apellido = perfil.Apellido;
+            sesion.Usuario = perfil.Usuario;
+            sesion.Correo = perfil.Correo;
+
             sessionStorage.setItem(
                 CLAVE_SESION,
-                JSON.stringify(perfil)
+                JSON.stringify(sesion)
             );
 
             /* 2) Contraseña (solo si escribió una nueva) */
@@ -481,7 +487,6 @@ formCuenta.addEventListener(
                     `${API_CUENTA}/api/cuenta/contrasena`,
                     "PATCH",
                     {
-                        correo: perfil.Correo,
                         contrasenaActual: passwordActual.value,
                         contrasenaNueva: nuevaPassword.value
                     }

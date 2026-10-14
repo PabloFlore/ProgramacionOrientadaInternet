@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Music Hub</title>
-    <link rel="stylesheet" href="Home.css?v=4">
+    <link rel="stylesheet" href="Home.css?v=6">
 </head>
 
 <body>
@@ -56,6 +56,25 @@
                         Aquí amamos a Josh Dun
                     </span>
                 </button>
+            </div>
+
+            <div class="sidebar-title private-title">
+                <span>Mensajes privados</span>
+                <button type="button"
+                        id="newDmButton"
+                        class="new-dm-button"
+                        title="Nueva conversación">
+                    +
+                </button>
+            </div>
+
+            <div class="contacts-list"
+                 id="contactsList"
+                 hidden>
+            </div>
+
+            <div class="private-list"
+                 id="privateList">
             </div>
         </aside>
 
@@ -299,9 +318,9 @@
         </div>
     </div>
 
-    <!-- Librerías + lógica (con ?v=4 para evitar caché viejo del celular) -->
+    <!-- Librerías + lógica (con ?v=6 para evitar caché viejo del celular) -->
 
-    <script src="libs/signalr.min.js?v=4"></script>
-    <script src="Home.js?v=4"></script>
+    <script src="libs/signalr.min.js?v=6"></script>
+    <script src="Home.js?v=6"></script>
 </body>
 </html>

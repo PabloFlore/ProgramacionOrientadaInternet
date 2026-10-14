@@ -20,4 +20,8 @@ public class Usuario
     public string Sal { get; set; } = "";
 
     public DateTime FechaRegistro { get; set; }
+
+    [JsonIgnore]
+    public string NombreCompleto =>
+        $"{Nombre} {Apellido}".Trim();
 }
