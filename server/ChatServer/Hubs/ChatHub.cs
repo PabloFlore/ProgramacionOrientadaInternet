@@ -126,8 +126,9 @@ public class ChatHub : Hub
             "ReceiveMessage",
             guardado.Usuario,
             guardado.Texto,
-            guardado.FechaEnvio.ToString("HH:mm:ss"),
-            chatId
+            guardado.FechaEnvio.ToLocalTime().ToString("HH:mm:ss"),
+            chatId,
+            usuarioId
         );
     }
 

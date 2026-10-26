@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using ChatServer.Modelos;
 
@@ -114,19 +115,33 @@ public static class MensajesBd
             return null;
         }
 
+        /* Solo se acepta la forma canónica dm:{menor}:{mayor} con ids
+           positivos y menor < mayor. "DM:1:2", "dm:2:1" o "dm:1:1" se
+           rechazan. */
+        if (a <= 0 || a >= b || CrearChatPrivado(a, b) != chatId)
+        {
+            return null;
+        }
+
         return (a, b);
     }
 
     /// <summary>
-    /// Los canales grupales son públicos (true). En una conversación
-    /// privada solo sus dos integrantes pueden participar.
+    /// Los canales grupales son públicos (true). Una conversación
+    /// privada solo la pueden usar sus dos integrantes; un id dm:
+    /// malformado se rechaza para todos (false).
     /// </summary>
     public static bool EsParticipante(string chatId, int usuarioId)
     {
+        if (!EsChatPrivado(chatId))
+        {
+            return true;
+        }
+
         var par = ParsearChatPrivado(chatId);
         if (par is null)
         {
-            return true;
+            return false;
         }
 
         return par.Value.A == usuarioId || par.Value.B == usuarioId;
@@ -151,7 +166,8 @@ public static class MensajesBd
         string usuario,
         string mensaje)
     {
-        var fecha = DateTime.Now;
+        /* Se guarda en UTC. La hora local se calcula al mostrarla. */
+        var fecha = DateTime.UtcNow;
 
         using var conexion = new SqliteConnection(CadenaConexion);
         conexion.Open();
@@ -293,10 +309,19 @@ public static class MensajesBd
         };
     }
 
+    /* Convierte el texto guardado (ISO 8601, en UTC o con desfase) a hora
+       local. Así Hora y Fecha de la API salen en la misma zona. */
     private static DateTime ParsearFecha(string texto)
     {
-        return DateTime.TryParse(texto, out var fecha)
-            ? fecha
-            : DateTime.MinValue;
+        if (!DateTime.TryParse(
+                texto,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var fecha))
+        {
+            return DateTime.MinValue;
+        }
+
+        return fecha.ToLocalTime();
     }
 }

@@ -309,15 +309,27 @@ if (registerForm) {
 
     });
 
-    /* Si viene de un registro recién creado, se precarga el
-       correo y el foco queda en la contraseña. */
-    const correoPrellenado =
-        sessionStorage.getItem("musicHubCorreoRegistro");
+}
 
-    if (correoPrellenado) {
-        document.getElementById("correo").value = correoPrellenado;
-        sessionStorage.removeItem("musicHubCorreoRegistro");
-        confirmPassword.focus();
+/* ======================= PRECARGA TRAS REGISTRO ======================= */
+
+/* Tras registrarse se vuelve a IniciarSesion.html con el correo ya
+   escrito. Va fuera de los bloques de formulario para que funcione en
+   la página de login (antes estaba dentro de if (registerForm)). */
+const correoRegistrado =
+    sessionStorage.getItem("musicHubCorreoRegistro");
+
+if (correoRegistrado) {
+    const campoCorreo = document.getElementById("correo");
+    const campoPassword = document.getElementById("password");
+
+    if (campoCorreo) {
+        campoCorreo.value = correoRegistrado;
     }
 
+    sessionStorage.removeItem("musicHubCorreoRegistro");
+
+    if (campoPassword) {
+        campoPassword.focus();
+    }
 }

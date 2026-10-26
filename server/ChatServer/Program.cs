@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.FileProviders;
 using ChatServer.Hubs;
 using ChatServer.Datos;
@@ -33,6 +32,10 @@ builder.Services.ConfigureHttpJsonOptions(opciones =>
 });
 
 var app = builder.Build();
+
+/* Al arrancar se borran las sesiones vencidas (y las anteriores a la
+   caducidad, que no tienen fecha de vencimiento). */
+SesionesBd.LimpiarVencidas();
 
 app.UseCors("SignalR");
 
@@ -157,9 +160,74 @@ IResult SinSesion() =>
 
 /* ======================= REGISTRO Y LOGIN (SQLite) ======================= */
 
+/* Límites de tamaño. La contraseña se limita a 128 caracteres; las
+   imágenes son data URL (texto) de como máximo 700 000 caracteres. */
+const int MaximoContrasena = 128;
+const int MaximoImagen = 700_000;
+
 var patronCorreo =
     new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+/* Devuelve el motivo del rechazo, o null si la contraseña es válida. */
+string? ValidarContrasena(string contrasena)
+{
+    if (contrasena.Length > MaximoContrasena)
+    {
+        return "La contraseña no puede tener más de " +
+            $"{MaximoContrasena} caracteres.";
+    }
+
+    if (contrasena.Length < 8 ||
+        !Regex.IsMatch(contrasena, "[0-9]") ||
+        !Regex.IsMatch(contrasena, "[A-Z]") ||
+        !Regex.IsMatch(contrasena, "[^A-Za-z0-9]"))
+    {
+        return "La contraseña debe tener al menos 8 caracteres, " +
+            "una mayúscula, un número y un símbolo.";
+    }
+
+    return null;
+}
+
+/* Solo JPEG, PNG y WebP (lista blanca). SVG y otros formatos se rechazan,
+   porque un SVG puede llevar scripts si se muestra como documento. */
+var patronImagen = new Regex(
+    @"^data:image/(jpeg|png|webp);base64,(.+)$",
+    RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+/* Vacío = sin imagen (no se valida). El tamaño se revisa primero para no
+   decodificar algo enorme. */
+string? ValidarImagen(string? dataUrl, string etiqueta)
+{
+    if (string.IsNullOrEmpty(dataUrl))
+    {
+        return null;
+    }
+
+    if (dataUrl.Length > MaximoImagen)
+    {
+        return $"{etiqueta} es demasiado grande. Usa una imagen más pequeña.";
+    }
+
+    var coincidencia = patronImagen.Match(dataUrl);
+
+    if (!coincidencia.Success)
+    {
+        return $"{etiqueta} debe ser una imagen JPEG, PNG o WebP.";
+    }
+
+    try
+    {
+        Convert.FromBase64String(coincidencia.Groups[2].Value);
+    }
+    catch (FormatException)
+    {
+        return $"{etiqueta} no es una imagen válida.";
+    }
+
+    return null;
+}
 
 /* .../api/registrar — crea una cuenta (correo único) */
 app.MapPost("/api/registrar", (RegistroRequest peticion) =>
@@ -171,7 +239,7 @@ app.MapPost("/api/registrar", (RegistroRequest peticion) =>
     var usuario =
         peticion.Usuario?.Trim() ?? "";
     var correo =
-        peticion.Correo?.Trim() ?? "";
+        (peticion.Correo?.Trim() ?? "").ToLowerInvariant();
     var contrasena =
         peticion.Contrasena ?? "";
 
@@ -189,15 +257,11 @@ app.MapPost("/api/registrar", (RegistroRequest peticion) =>
             new { Error = "El correo no tiene un formato válido." });
     }
 
-    if (contrasena.Length < 8 ||
-        !Regex.IsMatch(contrasena, "[0-9]") ||
-        !Regex.IsMatch(contrasena, "[A-Z]") ||
-        !Regex.IsMatch(contrasena, "[^A-Za-z0-9]"))
+    var errorContrasena = ValidarContrasena(contrasena);
+
+    if (errorContrasena is not null)
     {
-        return Results.BadRequest(
-            new { Error =
-                "La contraseña debe tener al menos 8 caracteres, " +
-                "una mayúscula, un número y un símbolo." });
+        return Results.BadRequest(new { Error = errorContrasena });
     }
 
     if (UsuariosBd.CorreoExiste(correo))
@@ -238,11 +302,12 @@ app.MapPost("/api/registrar", (RegistroRequest peticion) =>
         });
 });
 
-/* .../api/login — entra con correo + contraseña y emite un token */
+/* .../api/login — entra con correo + contraseña y emite un token.
+   Tras 5 fallos en 15 minutos el correo se bloquea (429). */
 app.MapPost("/api/login", (LoginRequest peticion) =>
 {
     var correo =
-        peticion.Correo?.Trim() ?? "";
+        (peticion.Correo?.Trim() ?? "").ToLowerInvariant();
     var contrasena =
         peticion.Contrasena ?? "";
 
@@ -252,18 +317,35 @@ app.MapPost("/api/login", (LoginRequest peticion) =>
             new { Error = "Escribe tu correo y tu contraseña." });
     }
 
+    if (LimiteIntentos.Bloqueado(correo))
+    {
+        return Results.Json(
+            new { Error =
+                "Demasiados intentos fallidos. Espera 15 minutos " +
+                "e inténtalo de nuevo." },
+            statusCode: StatusCodes.Status429TooManyRequests);
+    }
+
     var usuario = UsuariosBd.BuscarPorCorreo(correo);
 
-    if (usuario is null ||
-        !UsuariosBd.VerificarContrasena(
+    var valida =
+        usuario is not null &&
+        contrasena.Length <= MaximoContrasena &&
+        UsuariosBd.VerificarContrasena(
             contrasena,
             usuario.HashContrasena,
-            usuario.Sal))
+            usuario.Sal);
+
+    if (!valida || usuario is null)
     {
+        LimiteIntentos.RegistrarFallo(correo);
+
         return Results.Json(
             new { Error = "Correo o contraseña incorrectos." },
             statusCode: StatusCodes.Status401Unauthorized);
     }
+
+    LimiteIntentos.Limpiar(correo);
 
     var token = SesionesBd.Crear(usuario.Id);
 
@@ -395,9 +477,39 @@ app.MapGet("/api/mensajes",
     });
 });
 
-/* .../api/cuenta — actualiza el perfil de la sesión autenticada. */
+/* .../api/cuenta (GET) — datos de la cuenta, con foto y banner. Las
+   imágenes no viajan en el login ni en la sesión del navegador: se piden
+   aquí al abrir las pantallas que las muestran. */
+app.MapGet("/api/cuenta", (HttpContext contexto) =>
+{
+    var usuario = UsuarioAutenticado(contexto);
+
+    if (usuario is null)
+    {
+        return SinSesion();
+    }
+
+    var (foto, banner) = UsuariosBd.ObtenerImagenes(usuario.Id);
+
+    return Results.Ok(new
+    {
+        Nombre = usuario.Nombre,
+        Apellido = usuario.Apellido,
+        Usuario = usuario.NombreUsuario,
+        Correo = usuario.Correo,
+        FotoPerfil = foto,
+        Banner = banner
+    });
+});
+
+/* .../api/cuenta (PATCH) — actualiza la cuenta de la sesión en una sola petición.
+   Campos de perfil (obligatorios). Opcionales:
+   - ContrasenaActual + ContrasenaNueva: cambia la contraseña y cierra
+     las demás sesiones del usuario.
+   - FotoPerfil / Banner: data URL nueva; "" las quita; ausentes = sin cambio.
+   Todo se valida antes de escribir y la escritura es una transacción. */
 app.MapPatch("/api/cuenta",
-    (HttpContext contexto, ActualizarPerfilRequest peticion) =>
+    (HttpContext contexto, ActualizarCuentaRequest peticion) =>
 {
     var actual = UsuarioAutenticado(contexto);
 
@@ -416,7 +528,7 @@ app.MapPatch("/api/cuenta",
         peticion.Usuario?.Trim() ?? "";
 
     var correo =
-        peticion.Correo?.Trim() ?? "";
+        (peticion.Correo?.Trim() ?? "").ToLowerInvariant();
 
     if (nombre == "" || apellido == "" ||
         usuario == "" || correo == "")
@@ -431,8 +543,67 @@ app.MapPatch("/api/cuenta",
             new { Error = "El correo no tiene un formato válido." });
     }
 
-    if (!UsuariosBd.ActualizarPerfil(
-        actual.Id, nombre, apellido, usuario, correo))
+    /* Contraseña: solo se evalúa si se escribió una nueva. */
+    (string Hash, string Sal)? nuevaClave = null;
+
+    var contrasenaNueva = peticion.ContrasenaNueva ?? "";
+
+    if (contrasenaNueva != "")
+    {
+        var contrasenaActual = peticion.ContrasenaActual ?? "";
+
+        if (contrasenaActual == "")
+        {
+            return Results.BadRequest(new { Error =
+                "Escribe tu contraseña actual para cambiarla." });
+        }
+
+        var errorNueva = ValidarContrasena(contrasenaNueva);
+
+        if (errorNueva is not null)
+        {
+            return Results.BadRequest(new { Error = errorNueva });
+        }
+
+        if (contrasenaActual.Length > MaximoContrasena ||
+            !UsuariosBd.VerificarContrasena(
+                contrasenaActual,
+                actual.HashContrasena,
+                actual.Sal))
+        {
+            return Results.Json(
+                new { Error = "La contraseña actual es incorrecta." },
+                statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        nuevaClave = UsuariosBd.CrearHashContrasena(contrasenaNueva);
+    }
+
+    var errorFoto = ValidarImagen(peticion.FotoPerfil, "La foto");
+
+    if (errorFoto is not null)
+    {
+        return Results.BadRequest(new { Error = errorFoto });
+    }
+
+    var errorBanner = ValidarImagen(peticion.Banner, "El banner");
+
+    if (errorBanner is not null)
+    {
+        return Results.BadRequest(new { Error = errorBanner });
+    }
+
+    if (UsuariosBd.CorreoOcupadoPorOtro(correo, actual.Id) ||
+        !UsuariosBd.ActualizarCuenta(
+            actual.Id,
+            nombre,
+            apellido,
+            usuario,
+            correo,
+            nuevaClave,
+            peticion.FotoPerfil,
+            peticion.Banner,
+            TokenDe(contexto) ?? ""))
     {
         return Results.Conflict(
             new { Error = "Ese correo ya pertenece a otra cuenta." });
@@ -443,63 +614,9 @@ app.MapPatch("/api/cuenta",
         Nombre = nombre,
         Apellido = apellido,
         Usuario = usuario,
-        Correo = correo
+        Correo = correo,
+        ContrasenaCambiada = nuevaClave is not null
     });
-});
-
-/* .../api/cuenta/contrasena — exige la contraseña actual de la sesión. */
-app.MapPatch("/api/cuenta/contrasena",
-    (HttpContext contexto, CambiarContrasenaRequest peticion) =>
-{
-    var usuario = UsuarioAutenticado(contexto);
-
-    if (usuario is null)
-    {
-        return SinSesion();
-    }
-
-    var actual = peticion.ContrasenaActual ?? "";
-
-    var nueva = peticion.ContrasenaNueva ?? "";
-
-    if (actual == "" || nueva == "")
-    {
-        return Results.BadRequest(
-            new { Error = "Completa todos los campos." });
-    }
-
-    if (nueva.Length < 8 ||
-        !Regex.IsMatch(nueva, "[0-9]") ||
-        !Regex.IsMatch(nueva, "[A-Z]") ||
-        !Regex.IsMatch(nueva, "[^A-Za-z0-9]"))
-    {
-        return Results.BadRequest(
-            new { Error =
-                "La contraseña debe tener al menos 8 caracteres, " +
-                "una mayúscula, un número y un símbolo." });
-    }
-
-    if (!UsuariosBd.VerificarContrasena(
-        actual,
-        usuario.HashContrasena,
-        usuario.Sal))
-    {
-        return Results.Json(
-            new { Error = "La contraseña actual es incorrecta." },
-            statusCode: StatusCodes.Status401Unauthorized);
-    }
-
-    var (hash, sal) =
-        UsuariosBd.CrearHashContrasena(nueva);
-
-    if (!UsuariosBd.ActualizarContrasena(usuario.Id, hash, sal))
-    {
-        return Results.Json(
-            new { Error = "No se pudo actualizar la contraseña." },
-            statusCode: StatusCodes.Status500InternalServerError);
-    }
-
-    return Results.Ok(new { Mensaje = "Contraseña actualizada." });
 });
 
 app.Run();
@@ -515,12 +632,12 @@ public record LoginRequest(
     string? Correo,
     string? Contrasena);
 
-public record ActualizarPerfilRequest(
+public record ActualizarCuentaRequest(
     string? Nombre,
     string? Apellido,
     string? Usuario,
-    string? Correo);
-
-public record CambiarContrasenaRequest(
+    string? Correo,
     string? ContrasenaActual,
-    string? ContrasenaNueva);
+    string? ContrasenaNueva,
+    string? FotoPerfil,
+    string? Banner);

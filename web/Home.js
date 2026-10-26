@@ -141,6 +141,39 @@ if (profileUsername && sesionUsuario) {
     profileUsername.textContent = `@${sesionUsuario.Usuario || ""}`;
 }
 
+const profilePicture = document.getElementById("profilePicture");
+const profileBanner = document.getElementById("profileBanner");
+
+/* Foto y banner no viajan en la sesión (pesan mucho para sessionStorage):
+   se piden a la API. Si la cuenta no tiene imagen, quedan las del HTML. */
+async function cargarImagenesPerfil() {
+    if (!token) return;
+
+    try {
+        const respuesta = await fetch(`${SERVER_URL}/api/cuenta`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (!respuesta.ok) return;
+
+        const datos = await respuesta.json();
+
+        if (profilePicture && datos.FotoPerfil) {
+            profilePicture.src = datos.FotoPerfil;
+        }
+
+        if (profileBanner && datos.Banner) {
+            profileBanner.style.backgroundImage = `url("${datos.Banner}")`;
+            profileBanner.style.backgroundSize = "cover";
+            profileBanner.style.backgroundPosition = "center";
+        }
+    } catch (error) {
+        console.error("No se pudieron cargar las imágenes del perfil:", error);
+    }
+}
+
+cargarImagenesPerfil();
+
 if (logoutButton) {
     logoutButton.addEventListener("click", async () => {
         try {
@@ -177,13 +210,21 @@ async function cargarHistorial(chatId) {
         const datos = await respuesta.json();
 
         for (const mensaje of datos.Mensajes) {
-            if (mensaje.Usuario === alias) {
+            /* Se compara por UsuarioId (único por cuenta). Los mensajes
+               anteriores a la migración no tienen UsuarioId (null): solo
+               para esos se usa el nombre como respaldo. */
+            const esMio = mensaje.UsuarioId !== null
+                ? mensaje.UsuarioId === sesionUsuario.Id
+                : mensaje.Usuario === alias;
+
+            if (esMio) {
                 renderSent(mensaje.Texto, mensaje.Hora);
             } else {
                 renderIncoming(
                     mensaje.Usuario,
                     mensaje.Texto,
-                    mensaje.Hora
+                    mensaje.Hora,
+                    mensaje.UsuarioId
                 );
             }
         }
@@ -213,9 +254,10 @@ async function conectar() {
             .withUrl(`${SERVER_URL}/chat`, {
                 accessTokenFactory: () => token
             })
+            .withAutomaticReconnect()
             .build();
 
-        hub.on("ReceiveMessage", (user, message, time, chatId) => {
+        hub.on("ReceiveMessage", (user, message, time, chatId, usuarioId) => {
             /* Filtro por canal: si el mensaje es de otro chat se
                descarta. Evita que caiga en el chat equivocado
                durante el cambio de canal. */
@@ -226,12 +268,43 @@ async function conectar() {
                 return;
             }
 
-            renderIncoming(user, message, time);
+            renderIncoming(user, message, time, usuarioId);
         });
 
-        hub.onclose(() => {
+        hub.onreconnecting(() => {
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            aliasError.textContent = "Conexión perdida. Reconectando...";
+        });
+
+        /* SignalR no conserva los grupos al reconectar: hay que volver a
+           unirse al canal actual y recargar el historial para recuperar lo
+           que llegó mientras la conexión estuvo caída. */
+        hub.onreconnected(async () => {
+            try {
+                await hub.invoke("JoinGroup", currentChatId);
+                await cargarHistorial(currentChatId);
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                aliasError.textContent = "";
+            } catch (error) {
+                aliasError.textContent =
+                    "No se pudo volver a entrar al chat. Recarga la página.";
+            }
+        });
+
+        hub.onclose(async () => {
+            /* Se agotaron los reintentos. Si la sesión venció, la función
+               redirige al login; si no, fue un corte de red o del servidor. */
+            if (!(await sesionSigueVigente())) {
+                return;
+            }
+
+            messageInput.disabled = true;
+            sendButton.disabled = true;
             aliasError.textContent =
-                "Se perdió la conexión con el servidor.";
+                "Se perdió la conexión con el servidor. " +
+                "Recarga la página para reconectar.";
         });
 
         await hub.start();
@@ -250,9 +323,34 @@ async function conectar() {
         aliasError.textContent = "";
 
     } catch (error) {
+        if (!(await sesionSigueVigente())) {
+            return;
+        }
+
         aliasError.textContent =
             `No se pudo conectar a ${SERVER_URL}. ` +
             "¿El servidor está corriendo?";
+    }
+}
+
+/* Pregunta a la API si el token sigue vigente. Si responde 401 (venció,
+   se cerró en otro lugar o no es válido) se borra la sesión y se vuelve al
+   login. Sin red no es un problema de sesión, así que devuelve true. */
+async function sesionSigueVigente() {
+    try {
+        const respuesta = await fetch(`${SERVER_URL}/api/usuarios`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (respuesta.status === 401) {
+            sessionStorage.removeItem(CLAVE_SESION);
+            window.location.href = "IniciarSesion.html";
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        return true;
     }
 }
 
@@ -470,9 +568,10 @@ function renderSent(text, hora) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-function renderIncoming(user, message, time) {
+function renderIncoming(user, message, time, usuarioId) {
     if (!currentChatId) return;
-    if (user === alias) return;
+    /* Mensaje propio que vuelve por el hub (ya se pintó en renderSent). */
+    if (usuarioId !== undefined && usuarioId === sesionUsuario.Id) return;
 
     /* Si el usuario está leyendo mensajes de arriba, no lo forzamos
        a bajar; solo auto-scrolleamos si ya estaba cerca del fondo. */

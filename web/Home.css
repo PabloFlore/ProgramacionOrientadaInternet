@@ -207,6 +207,27 @@ body {
     color: var(--muted);
 }
 
+.video-call-button {
+    margin-left: auto;
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: bold;
+    text-decoration: none;
+    color: #ffffff;
+    background:
+        linear-gradient(135deg, var(--pink), var(--coral));
+    box-shadow:
+        0 6px 16px rgba(233, 79, 168, 0.35);
+    transition: 0.2s ease;
+}
+
+.video-call-button:hover {
+    background:
+        linear-gradient(135deg, #f468b6, #ff9cab);
+    transform: translateY(-2px);
+}
+
 .messages {
     flex: 1;
     min-height: 0;

@@ -45,6 +45,12 @@ const formCuenta =
 const btnRegresar =
     document.getElementById("btnRegresar");
 
+/* Un solo lugar para mostrar errores del formulario. */
+function mostrarError(mensaje) {
+    passwordError.textContent = mensaje;
+    passwordError.style.display = "block";
+}
+
 // PREVIEWS
 
 let cambiosGuardados = false;
@@ -126,62 +132,113 @@ correo.addEventListener(
     }
 );
 
-foto.addEventListener(
-    "change",
-    function () {
+/* Imágenes que se enviarán al guardar. null = no cambian.
+   Se guardan como data URL reducida (JPEG) para caber en la base. */
+let fotoNueva = null;
+let bannerNueva = null;
 
-        if (foto.files.length === 0) {
-            return;
-        }
+/* Mismo límite que el servidor (MaximoImagen). */
+const MAX_IMAGEN_CARACTERES = 700000;
 
-        const archivo =
-            foto.files[0];
+/* Reduce la imagen con canvas hasta maxLado píxeles en su lado mayor
+   y la exporta como JPEG, bajando la calidad si aún es muy pesada. */
+function reducirImagen(archivo, maxLado) {
+    return new Promise((resolver, rechazar) => {
+        const lector = new FileReader();
 
-        const imagen =
-            URL.createObjectURL(archivo);
+        lector.onerror = () =>
+            rechazar(new Error("No se pudo leer la imagen."));
 
-        previewFoto.src = imagen;
+        lector.onload = () => {
+            const img = new Image();
 
-        const nombreArchivo =
-            foto.parentElement.querySelector(
-                ".file-name"
-            );
+            img.onerror = () =>
+                rechazar(new Error("El archivo no es una imagen válida."));
 
-        nombreArchivo.textContent =
-            archivo.name;
+            img.onload = () => {
+                const escala = Math.min(
+                    1,
+                    maxLado / Math.max(img.width, img.height)
+                );
 
-        cambiosGuardados = false;
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.round(img.width * escala);
+                canvas.height = Math.round(img.height * escala);
+
+                const ctx = canvas.getContext("2d");
+                /* JPEG no tiene transparencia: se pinta fondo blanco. */
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                for (const calidad of [0.85, 0.7, 0.5]) {
+                    const dataUrl = canvas.toDataURL("image/jpeg", calidad);
+
+                    if (dataUrl.length <= MAX_IMAGEN_CARACTERES) {
+                        resolver(dataUrl);
+                        return;
+                    }
+                }
+
+                rechazar(new Error(
+                    "La imagen es demasiado grande incluso comprimida. " +
+                    "Usa una más pequeña."
+                ));
+            };
+
+            img.src = lector.result;
+        };
+
+        lector.readAsDataURL(archivo);
+    });
+}
+
+foto.addEventListener("change", async function () {
+    if (foto.files.length === 0) {
+        return;
     }
-);
 
-banner.addEventListener(
-    "change",
-    function () {
+    const archivo = foto.files[0];
 
-        if (banner.files.length === 0) {
-            return;
-        }
+    const nombreArchivo =
+        foto.parentElement.querySelector(".file-name");
 
-        const archivo =
-            banner.files[0];
-
-        const imagen =
-            URL.createObjectURL(archivo);
-
-        previewBanner.style.backgroundImage =
-            `url("${imagen}")`;
-
-        const nombreArchivo =
-            banner.parentElement.querySelector(
-                ".file-name"
-            );
-
-        nombreArchivo.textContent =
-            archivo.name;
-
+    try {
+        fotoNueva = await reducirImagen(archivo, 512);
+        previewFoto.src = fotoNueva;
+        nombreArchivo.textContent = archivo.name;
         cambiosGuardados = false;
+    } catch (error) {
+        fotoNueva = null;
+        foto.value = "";
+        nombreArchivo.textContent = "Ningún archivo seleccionado";
+        mostrarError(error.message);
     }
-);
+});
+
+banner.addEventListener("change", async function () {
+    if (banner.files.length === 0) {
+        return;
+    }
+
+    const archivo = banner.files[0];
+
+    const nombreArchivo =
+        banner.parentElement.querySelector(".file-name");
+
+    try {
+        /* El banner es más ancho: se permite más resolución. */
+        bannerNueva = await reducirImagen(archivo, 1024);
+        previewBanner.style.backgroundImage = `url("${bannerNueva}")`;
+        nombreArchivo.textContent = archivo.name;
+        cambiosGuardados = false;
+    } catch (error) {
+        bannerNueva = null;
+        banner.value = "";
+        nombreArchivo.textContent = "Ningún archivo seleccionado";
+        mostrarError(error.message);
+    }
+});
 
 // VALIDACIONES CONTRASEÑA
 
@@ -332,8 +389,7 @@ function validarConfirmacion() {
         nuevaPassword.value !==
         confirmarPassword.value
     ) {
-        passwordError.style.display =
-            "block";
+        mostrarError("Las contraseñas no coinciden.");
         return false;
     } else {
         passwordError.style.display =
@@ -394,6 +450,29 @@ async function pedir(url, metodo, cuerpo) {
     return datos;
 }
 
+/* Foto y banner guardados: no van en la sesión, se piden a la API. */
+async function cargarImagenesGuardadas() {
+    try {
+        const respuesta = await fetch(`${API_CUENTA}/api/cuenta`, {
+            headers: { "Authorization": `Bearer ${sesion.Token || ""}` }
+        });
+
+        if (!respuesta.ok) return;
+
+        const datos = await respuesta.json();
+
+        if (datos.FotoPerfil) {
+            previewFoto.src = datos.FotoPerfil;
+        }
+
+        if (datos.Banner) {
+            previewBanner.style.backgroundImage = `url("${datos.Banner}")`;
+        }
+    } catch (error) {
+        console.error("No se pudieron cargar las imágenes:", error);
+    }
+}
+
 /* Sin sesión no se edita el perfil. */
 const sesion = leerSesion();
 
@@ -410,6 +489,8 @@ if (!sesion) {
     previewUsuario.textContent =
         "@" + (sesion.Usuario || "usuario");
     previewCorreo.textContent = sesion.Correo || "";
+
+    cargarImagenesGuardadas();
 }
 
 formCuenta.addEventListener(
@@ -431,34 +512,60 @@ formCuenta.addEventListener(
         if (nombreValor === "" || apellidoValor === "" ||
             usuarioValor === "" || correoValor === "")
         {
-            passwordError.style.display = "block";
-            passwordError.textContent =
-                "Completa todos los campos.";
+            mostrarError("Completa todos los campos.");
             return;
         }
 
-        if (!validarPassword()) {
-            passwordError.style.display = "block";
-            passwordError.textContent =
-                "La contraseña no cumple con todos los requisitos.";
-            return;
+        /* La contraseña solo se valida si el usuario quiere cambiarla. */
+        const quiereCambiarPassword = nuevaPassword.value !== "";
+
+        if (quiereCambiarPassword) {
+            if (passwordActual.value === "") {
+                mostrarError(
+                    "Escribe tu contraseña actual para cambiarla."
+                );
+                return;
+            }
+
+            if (!validarPassword()) {
+                mostrarError(
+                    "La contraseña no cumple con todos los requisitos."
+                );
+                return;
+            }
+
+            if (nuevaPassword.value !== confirmarPassword.value) {
+                mostrarError("Las contraseñas no coinciden.");
+                return;
+            }
         }
 
-        if (!validarConfirmacion()) {
-            return;
+        /* Un solo PATCH: el servidor valida todo antes de escribir. */
+        const cuerpo = {
+            nombre: nombreValor,
+            apellido: apellidoValor,
+            usuario: usuarioValor,
+            correo: correoValor
+        };
+
+        if (quiereCambiarPassword) {
+            cuerpo.contrasenaActual = passwordActual.value;
+            cuerpo.contrasenaNueva = nuevaPassword.value;
+        }
+
+        if (fotoNueva !== null) {
+            cuerpo.fotoPerfil = fotoNueva;
+        }
+
+        if (bannerNueva !== null) {
+            cuerpo.banner = bannerNueva;
         }
 
         try {
-            /* 1) Perfil */
             const perfil = await pedir(
                 `${API_CUENTA}/api/cuenta`,
                 "PATCH",
-                {
-                    nombre: nombreValor,
-                    apellido: apellidoValor,
-                    usuario: usuarioValor,
-                    correo: correoValor
-                }
+                cuerpo
             );
 
             /* La sesión se actualiza conservando el token. */
@@ -472,28 +579,6 @@ formCuenta.addEventListener(
                 JSON.stringify(sesion)
             );
 
-            /* 2) Contraseña (solo si escribió una nueva) */
-            if (nuevaPassword.value !== "") {
-
-                if (passwordActual.value === "") {
-                    passwordError.style.display = "block";
-                    passwordError.textContent =
-                        "Escribe tu contraseña actual para " +
-                        "cambiarla.";
-                    return;
-                }
-
-                await pedir(
-                    `${API_CUENTA}/api/cuenta/contrasena`,
-                    "PATCH",
-                    {
-                        contrasenaActual: passwordActual.value,
-                        contrasenaNueva: nuevaPassword.value
-                    }
-                );
-
-            }
-
             cambiosGuardados = true;
 
             alert("Datos guardados con éxito.");
@@ -501,8 +586,7 @@ formCuenta.addEventListener(
             window.location.href = "Home.html";
 
         } catch (error) {
-            passwordError.style.display = "block";
-            passwordError.textContent = error.message;
+            mostrarError(error.message);
         }
     }
 );

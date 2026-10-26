@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Videollamada - Music Hub</title>
+    <link rel="stylesheet" href="Videollamada.css?v=1">
+</head>
+
+<body>
+    <header class="navbar">
+        <div class="logo">
+            MUSIC HUB
+        </div>
+        <a href="Home.html"
+           class="back-link">
+            Regresar
+        </a>
+    </header>
+
+    <div class="call-app">
+        <main class="call-stage">
+            <div class="call-status-bar">
+                <span class="live-dot"
+                      id="liveDot">
+                </span>
+                <span id="callStatus">
+                    Llamando...
+                </span>
+            </div>
+
+            <section class="remote-video">
+                <img class="remote-avatar"
+                     src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
+                     alt="Arinator">
+                <div class="remote-name">
+                    <h2 id="remoteName">
+                        Arinator
+                    </h2>
+                    <span id="remoteState">
+                        Conectado
+                    </span>
+                </div>
+            </section>
+
+            <div class="self-video">
+                <img src="https://i.pinimg.com/1200x/9e/bf/8f/9ebf8f5715c39cd5181558d11c1fb958.jpg"
+                     alt="Tu cámara">
+                <span>
+                    Tú
+                </span>
+            </div>
+
+            <div class="participants-strip">
+                <button type="button"
+                        class="participant active"
+                        data-name="Arinator">
+                    <img src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
+                         alt="Arinator">
+                    <span>
+                        Arinator
+                    </span>
+                </button>
+
+                <button type="button"
+                        class="participant"
+                        data-name="Twenty One Pilots">
+                    <img src="https://i.pinimg.com/1200x/0b/de/25/0bde25514b531ada811674223955fc04.jpg"
+                         alt="Twenty One Pilots">
+                    <span>
+                        TOP
+                    </span>
+                </button>
+
+                <button type="button"
+                        class="participant"
+                        data-name="Nedsito">
+                    <img src="https://i.pinimg.com/736x/01/39/d9/0139d91c48aeaf302e28121a46093b34.jpg"
+                         alt="Nedsito">
+                    <span>
+                        Nedsito
+                    </span>
+                </button>
+
+                <button type="button"
+                        class="participant"
+                        data-name="Aquí amamos a Josh Dun">
+                    <img src="https://i.pinimg.com/1200x/6e/44/81/6e44814a20c65645359c3731e49bbf43.jpg"
+                         alt="Aquí amamos a Josh Dun">
+                    <span>
+                        Josh Dun
+                    </span>
+                </button>
+            </div>
+
+            <div class="call-controls">
+                <button type="button"
+                        class="control"
+                        id="toggleMic"
+                        title="Micrófono">
+                    <svg viewBox="0 0 24 24"
+                         aria-hidden="true">
+                        <path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 0 0-8 0v5a4 4 0 0 0 4 4z" fill="currentColor" />
+                        <path d="M5 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    <span class="control-label">
+                        Micrófono
+                    </span>
+                </button>
+
+                <button type="button"
+                        class="control"
+                        id="toggleCamera"
+                        title="Cámara">
+                    <svg viewBox="0 0 24 24"
+                         aria-hidden="true">
+                        <path d="M4 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" fill="currentColor" />
+                        <path d="M16 10l5-3v10l-5-3z" fill="currentColor" />
+                    </svg>
+                    <span class="control-label">
+                        Cámara
+                    </span>
+                </button>
+
+                <button type="button"
+                        class="control"
+                        id="toggleScreen"
+                        title="Compartir pantalla">
+                    <svg viewBox="0 0 24 24"
+                         aria-hidden="true">
+                        <rect x="3"
+                              y="4"
+                              width="18"
+                              height="12"
+                              rx="2"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2" />
+                        <line x1="8" y1="20" x2="16" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    <span class="control-label">
+                        Pantalla
+                    </span>
+                </button>
+
+                <button type="button"
+                        class="control end"
+                        id="endCall"
+                        title="Colgar">
+                    <svg viewBox="0 0 24 24"
+                         aria-hidden="true">
+                        <path d="M4 14c5-3 11-3 16 0v2a2 2 0 0 1-2 2h-2l-1-3a9 9 0 0 0-6 0l-1 3H4a2 2 0 0 1-2-2z" fill="currentColor" />
+                    </svg>
+                    <span class="control-label">
+                        Colgar
+                    </span>
+                </button>
+            </div>
+        </main>
+
+        <aside class="call-sidebar">
+            <div class="side-tabs">
+                <button type="button"
+                        class="side-tab active"
+                        data-tab="participantes">
+                    Participantes
+                </button>
+                <button type="button"
+                        class="side-tab"
+                        data-tab="chat">
+                    Chat de la llamada
+                </button>
+            </div>
+
+            <div class="side-panel active"
+                 id="panelParticipantes">
+                <div class="participant-row">
+                    <img src="https://i.pinimg.com/1200x/9e/bf/8f/9ebf8f5715c39cd5181558d11c1fb958.jpg"
+                         alt="Tú">
+                    <div>
+                        <strong id="selfName">
+                            Tú
+                        </strong>
+                        <span>
+                            Tú
+                        </span>
+                    </div>
+                </div>
+
+                <div class="participant-row">
+                    <img src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
+                         alt="Arinator">
+                    <div>
+                        <strong>
+                            Arinator
+                        </strong>
+                        <span>
+                            Hablando
+                        </span>
+                    </div>
+                </div>
+
+                <div class="participant-row">
+                    <img src="https://i.pinimg.com/1200x/0b/de/25/0bde25514b531ada811674223955fc04.jpg"
+                         alt="Twenty One Pilots">
+                    <div>
+                        <strong>
+                            Twenty One Pilots
+                        </strong>
+                        <span>
+                            En silencio
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="side-panel"
+                 id="panelChat">
+                <div class="call-chat">
+                    <div class="call-message">
+                        <strong>
+                            Arinator
+                        </strong>
+                        <p>
+                            ¿Ya escucharon el nuevo álbum?
+                        </p>
+                    </div>
+
+                    <div class="call-message own">
+                        <strong>
+                            Tú
+                        </strong>
+                        <p>
+                            Sí, está increíble.
+                        </p>
+                    </div>
+
+                    <div class="call-message">
+                        <strong>
+                            Arinator
+                        </strong>
+                        <p>
+                            Tenemos que armar la playlist del grupo.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="call-chat-input">
+                    <input type="text"
+                           id="callChatInput"
+                           placeholder="Escribe un mensaje...">
+                    <button type="button"
+                            id="callChatSend">
+                        Enviar
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="Videollamada.js?v=1"></script>
+</body>
+
+</html>

@@ -14,6 +14,13 @@ public static class UsuariosBd
     private const int TamSal = 16;
     private const int TamHash = 32;
 
+    /* Columnas en el mismo orden que LeerUsuario. Las imágenes (FotoPerfil,
+       Banner) pesan hasta ~1,4 MB por usuario y no se cargan aquí: se leen
+       solo con ObtenerImagenes, para no pagarlas en cada petición. */
+    private const string ColumnasUsuario = @"
+        Id, Nombre, Apellido, Usuario, Correo,
+        HashContrasena, Sal, FechaRegistro";
+
     private static readonly string RutaBd =
         Path.Combine(AppContext.BaseDirectory, "chat.db");
 
@@ -34,20 +41,59 @@ public static class UsuariosBd
         using var conexion = new SqliteConnection(CadenaConexion);
         conexion.Open();
 
-        using var comando = conexion.CreateCommand();
-        comando.CommandText = @"
-            CREATE TABLE IF NOT EXISTS Usuarios (
-                Id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                Nombre          TEXT NOT NULL,
-                Apellido        TEXT NOT NULL,
-                Usuario         TEXT NOT NULL,
-                Correo          TEXT NOT NULL UNIQUE,
-                HashContrasena  TEXT NOT NULL,
-                Sal             TEXT NOT NULL,
-                FechaRegistro   TEXT NOT NULL
-            );
-        ";
-        comando.ExecuteNonQuery();
+        using (var comando = conexion.CreateCommand())
+        {
+            comando.CommandText = @"
+                CREATE TABLE IF NOT EXISTS Usuarios (
+                    Id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Nombre          TEXT NOT NULL,
+                    Apellido        TEXT NOT NULL,
+                    Usuario         TEXT NOT NULL,
+                    Correo          TEXT NOT NULL UNIQUE,
+                    HashContrasena  TEXT NOT NULL,
+                    Sal             TEXT NOT NULL,
+                    FechaRegistro   TEXT NOT NULL,
+                    FotoPerfil      TEXT NULL,
+                    Banner          TEXT NULL
+                );
+            ";
+            comando.ExecuteNonQuery();
+        }
+
+        /* Migración: bases creadas antes no tienen las columnas de imagen. */
+        foreach (var columna in new[] { "FotoPerfil", "Banner" })
+        {
+            if (!TieneColumna(conexion, "Usuarios", columna))
+            {
+                using var alter = conexion.CreateCommand();
+                alter.CommandText =
+                    $"ALTER TABLE Usuarios ADD COLUMN {columna} TEXT NULL;";
+                alter.ExecuteNonQuery();
+            }
+        }
+    }
+
+    private static bool TieneColumna(
+        SqliteConnection conexion,
+        string tabla,
+        string columna)
+    {
+        using var pragma = conexion.CreateCommand();
+        pragma.CommandText = $"PRAGMA table_info({tabla});";
+
+        using var lector = pragma.ExecuteReader();
+        while (lector.Read())
+        {
+            if (string.Equals(
+                    lector.GetString(1),
+                    columna,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static bool CorreoExiste(string correo)
@@ -61,6 +107,27 @@ public static class UsuariosBd
             WHERE LOWER(Correo) = LOWER($correo);
         ";
         comando.Parameters.AddWithValue("$correo", correo);
+
+        long cuenta = (long)comando.ExecuteScalar()!;
+        return cuenta > 0;
+    }
+
+    /// <summary>
+    /// True si el correo ya lo usa otra cuenta distinta de idActual
+    /// (sin distinguir mayúsculas).
+    /// </summary>
+    public static bool CorreoOcupadoPorOtro(string correo, int idActual)
+    {
+        using var conexion = new SqliteConnection(CadenaConexion);
+        conexion.Open();
+
+        using var comando = conexion.CreateCommand();
+        comando.CommandText = @"
+            SELECT COUNT(*) FROM Usuarios
+            WHERE LOWER(Correo) = LOWER($correo) AND Id <> $id;
+        ";
+        comando.Parameters.AddWithValue("$correo", correo);
+        comando.Parameters.AddWithValue("$id", idActual);
 
         long cuenta = (long)comando.ExecuteScalar()!;
         return cuenta > 0;
@@ -113,9 +180,8 @@ public static class UsuariosBd
         conexion.Open();
 
         using var comando = conexion.CreateCommand();
-        comando.CommandText = @"
-            SELECT Id, Nombre, Apellido, Usuario, Correo,
-                   HashContrasena, Sal, FechaRegistro
+        comando.CommandText = $@"
+            SELECT {ColumnasUsuario}
             FROM Usuarios
             WHERE LOWER(Correo) = LOWER($correo)
             LIMIT 1;
@@ -137,9 +203,8 @@ public static class UsuariosBd
         conexion.Open();
 
         using var comando = conexion.CreateCommand();
-        comando.CommandText = @"
-            SELECT Id, Nombre, Apellido, Usuario, Correo,
-                   HashContrasena, Sal, FechaRegistro
+        comando.CommandText = $@"
+            SELECT {ColumnasUsuario}
             FROM Usuarios
             WHERE Id = $id
             LIMIT 1;
@@ -162,9 +227,8 @@ public static class UsuariosBd
         conexion.Open();
 
         using var comando = conexion.CreateCommand();
-        comando.CommandText = @"
-            SELECT Id, Nombre, Apellido, Usuario, Correo,
-                   HashContrasena, Sal, FechaRegistro
+        comando.CommandText = $@"
+            SELECT {ColumnasUsuario}
             FROM Usuarios
             WHERE Id <> $excluir
             ORDER BY Nombre, Apellido;
@@ -197,70 +261,126 @@ public static class UsuariosBd
         };
     }
 
+    /// <summary>Foto y banner del usuario (data URL), o null si no tiene.</summary>
+    public static (string? Foto, string? Banner) ObtenerImagenes(int id)
+    {
+        using var conexion = new SqliteConnection(CadenaConexion);
+        conexion.Open();
+
+        using var comando = conexion.CreateCommand();
+        comando.CommandText = @"
+            SELECT FotoPerfil, Banner FROM Usuarios
+            WHERE Id = $id
+            LIMIT 1;
+        ";
+        comando.Parameters.AddWithValue("$id", id);
+
+        using var lector = comando.ExecuteReader();
+        if (!lector.Read())
+        {
+            return (null, null);
+        }
+
+        return (
+            lector.IsDBNull(0) ? null : lector.GetString(0),
+            lector.IsDBNull(1) ? null : lector.GetString(1));
+    }
+
     /// <summary>
-    /// Actualiza los datos de perfil. Devuelve false si el correo
-    /// ya pertenece a otra cuenta (UNIQUE).
+    /// Guarda perfil, contraseña e imágenes en una sola transacción.
+    /// - nuevaClave: null = no cambia la contraseña. Si se cambia, se
+    ///   cierran las demás sesiones del usuario (se conserva tokenActual).
+    /// - foto / banner: null = no cambian; "" = se quitan; otro valor =
+    ///   nueva data URL.
+    /// Devuelve false si el correo ya pertenece a otra cuenta.
     /// </summary>
-    public static bool ActualizarPerfil(
+    public static bool ActualizarCuenta(
         int id,
         string nombre,
         string apellido,
         string usuario,
-        string correo)
+        string correo,
+        (string Hash, string Sal)? nuevaClave,
+        string? foto,
+        string? banner,
+        string tokenActual)
     {
         using var conexion = new SqliteConnection(CadenaConexion);
         conexion.Open();
 
-        using var comando = conexion.CreateCommand();
-        comando.CommandText = @"
-            UPDATE Usuarios
-            SET Nombre = $nombre,
-                Apellido = $apellido,
-                Usuario = $usuario,
-                Correo = $correo
-            WHERE Id = $id;
-        ";
-        comando.Parameters.AddWithValue("$id", id);
-        comando.Parameters.AddWithValue("$nombre", nombre);
-        comando.Parameters.AddWithValue("$apellido", apellido);
-        comando.Parameters.AddWithValue("$usuario", usuario);
-        comando.Parameters.AddWithValue("$correo", correo);
+        using var transaccion = conexion.BeginTransaction();
 
         try
         {
-            return comando.ExecuteNonQuery() > 0;
-        }
-        catch (SqliteException ex)
-        {
-            if (ex.SqliteErrorCode == 19) // UNIQUE: correo duplicado
+            var asignaciones = new List<string>
             {
-                return false;
+                "Nombre = $nombre",
+                "Apellido = $apellido",
+                "Usuario = $usuario",
+                "Correo = $correo"
+            };
+
+            using var update = conexion.CreateCommand();
+            update.Transaction = transaccion;
+            update.Parameters.AddWithValue("$id", id);
+            update.Parameters.AddWithValue("$nombre", nombre);
+            update.Parameters.AddWithValue("$apellido", apellido);
+            update.Parameters.AddWithValue("$usuario", usuario);
+            update.Parameters.AddWithValue("$correo", correo);
+
+            if (nuevaClave is not null)
+            {
+                asignaciones.Add("HashContrasena = $hash");
+                asignaciones.Add("Sal = $sal");
+                update.Parameters.AddWithValue("$hash", nuevaClave.Value.Hash);
+                update.Parameters.AddWithValue("$sal", nuevaClave.Value.Sal);
             }
-            throw;
+
+            if (foto is not null)
+            {
+                asignaciones.Add("FotoPerfil = $foto");
+                update.Parameters.AddWithValue(
+                    "$foto", ValorONulo(foto));
+            }
+
+            if (banner is not null)
+            {
+                asignaciones.Add("Banner = $banner");
+                update.Parameters.AddWithValue(
+                    "$banner", ValorONulo(banner));
+            }
+
+            update.CommandText =
+                $"UPDATE Usuarios SET {string.Join(", ", asignaciones)} " +
+                "WHERE Id = $id;";
+            update.ExecuteNonQuery();
+
+            if (nuevaClave is not null)
+            {
+                using var cerrarOtras = conexion.CreateCommand();
+                cerrarOtras.Transaction = transaccion;
+                cerrarOtras.CommandText = @"
+                    DELETE FROM Sesiones
+                    WHERE UsuarioId = $id AND Token <> $actual;
+                ";
+                cerrarOtras.Parameters.AddWithValue("$id", id);
+                cerrarOtras.Parameters.AddWithValue("$actual", tokenActual);
+                cerrarOtras.ExecuteNonQuery();
+            }
+
+            transaccion.Commit();
+            return true;
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+        {
+            /* UNIQUE: el correo ya pertenece a otra cuenta. */
+            transaccion.Rollback();
+            return false;
         }
     }
 
-    public static bool ActualizarContrasena(
-        int id,
-        string hash,
-        string sal)
-    {
-        using var conexion = new SqliteConnection(CadenaConexion);
-        conexion.Open();
-
-        using var comando = conexion.CreateCommand();
-        comando.CommandText = @"
-            UPDATE Usuarios
-            SET HashContrasena = $hash,
-                Sal = $sal
-            WHERE Id = $id;
-        ";
-        comando.Parameters.AddWithValue("$id", id);
-        comando.Parameters.AddWithValue("$hash", hash);
-        comando.Parameters.AddWithValue("$sal", sal);
-
-        return comando.ExecuteNonQuery() > 0;
-    }
+    private static object ValorONulo(string valor) =>
+        valor == "" ? DBNull.Value : valor;
 
     /// <summary>PBKDF2-SHA256: devuelve (hash, sal) en Base64. Nada en texto plano.</summary>
     public static (string Hash, string Sal) CrearHashContrasena(

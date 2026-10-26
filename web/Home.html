@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Music Hub</title>
-    <link rel="stylesheet" href="Home.css?v=6">
+    <link rel="stylesheet" href="Home.css?v=7">
 </head>
 
 <body>
@@ -93,6 +93,12 @@
                         </span>
                     </div>
                 </div>
+
+                <a href="Videollamada.html"
+                   class="video-call-button"
+                   title="Iniciar videollamada">
+                    Videollamada
+                </a>
             </header>
 
             <!-- MENSAJES -->
@@ -238,8 +244,10 @@
                 </a>
             </div>
 
-            <div class="profile-banner">
+            <div class="profile-banner"
+                 id="profileBanner">
                 <img class="profile-picture"
+                     id="profilePicture"
                      src="https://i.pinimg.com/1200x/9e/bf/8f/9ebf8f5715c39cd5181558d11c1fb958.jpg"
                      alt="Foto de perfil">
             </div>
@@ -320,7 +328,7 @@
 
     <!-- Librerías + lógica (con ?v=6 para evitar caché viejo del celular) -->
 
-    <script src="libs/signalr.min.js?v=6"></script>
-    <script src="Home.js?v=6"></script>
+    <script src="libs/signalr.min.js?v=7"></script>
+    <script src="Home.js?v=10"></script>
 </body>
 </html>
