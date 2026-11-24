@@ -13,7 +13,18 @@ $raizProyecto = Resolve-Path (Join-Path $PSScriptRoot "..\..\..")
 $binOrigen = Resolve-Path (Join-Path $PSScriptRoot "..\bin\Debug\net8.0")
 $webOrigen = Join-Path $raizProyecto "web"
 $raiz = Join-Path $env:TEMP "pia_prueba_cuenta"
-$base = "http://localhost:5000"
+$base = "https://localhost:5000"
+
+# El servidor solo habla HTTPS: usa el certificado del proyecto y exige que
+# la CA local esté instalada en el equipo (tools\generar_certificados.ps1).
+$certificado = Join-Path $PSScriptRoot "..\certs\servidor.pfx"
+
+if (-not (Test-Path -LiteralPath $certificado)) {
+    throw "No existe el certificado HTTPS. Genéralo con: powershell -File tools\generar_certificados.ps1 -Ip <IP>"
+}
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$env:PIA_CERTIFICADO = (Resolve-Path $certificado).Path
 
 if (-not (Test-Path -LiteralPath (Join-Path $binOrigen "ChatServer.dll"))) {
     throw "No existe ChatServer.dll. Compila primero con: dotnet build (en server/ChatServer)."
@@ -28,6 +39,7 @@ New-Item -ItemType Directory -Path "$raiz\server" -Force | Out-Null
 Copy-Item $webOrigen "$raiz\web" -Recurse
 Copy-Item $binOrigen "$raiz\server\bin" -Recurse
 Remove-Item "$raiz\server\bin\chat.db*" -Force -ErrorAction SilentlyContinue
+$env:PIA_CARPETA_DATOS = "$raiz\datos"
 
 $proc = Start-Process dotnet -ArgumentList "`"$raiz\server\bin\ChatServer.dll`"" -PassThru -WindowStyle Hidden
 

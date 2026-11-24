@@ -80,8 +80,7 @@ body {
     width: 100%;
     height: calc(100vh - 70px);
     display: grid;
-    grid-template-columns:
-        1fr 320px;
+    grid-template-columns: 1fr;
     background: var(--surface);
     backdrop-filter: blur(20px);
 }
@@ -113,6 +112,11 @@ body {
     background: var(--coral);
     box-shadow: 0 0 0 0 rgba(255, 138, 157, 0.6);
     animation: livePulse 1.6s infinite;
+}
+
+.live-dot.live {
+    background: #3ecf8e;
+    animation-duration: 1s;
 }
 
 @keyframes livePulse {
@@ -152,6 +156,31 @@ body {
     overflow: hidden;
 }
 
+.remote-video > video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #2a1833;
+}
+
+.remote-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    font-size: 14px;
+    color: #e8d5f2;
+}
+
+.remote-placeholder[hidden] {
+    display: none;
+}
+
 .remote-avatar {
     width: 160px;
     height: 160px;
@@ -164,6 +193,14 @@ body {
 }
 
 .remote-name {
+    position: absolute;
+    left: 20px;
+    bottom: 18px;
+    z-index: 2;
+    padding: 8px 16px;
+    border-radius: 14px;
+    background: rgba(59, 36, 72, 0.55);
+    backdrop-filter: blur(6px);
     text-align: center;
     color: #fff8ff;
 }
@@ -193,7 +230,7 @@ body {
     z-index: 5;
 }
 
-.self-video img {
+.self-video video {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -508,6 +545,31 @@ body {
         linear-gradient(135deg, #f468b6, #ff9cab);
 }
 
+.call-ended {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+    background: rgba(59, 36, 72, 0.6);
+    backdrop-filter: blur(6px);
+    color: #fff8ff;
+}
+
+.call-ended[hidden] {
+    display: none;
+}
+
+.call-ended p {
+    font-size: 17px;
+    max-width: 420px;
+}
+
 ::-webkit-scrollbar {
     width: 6px;
 }
@@ -522,11 +584,6 @@ body {
 }
 
 @media (max-width: 900px) {
-    .call-app {
-        grid-template-columns:
-            1fr 260px;
-    }
-
     .self-video {
         width: 120px;
         height: 84px;
@@ -534,19 +591,6 @@ body {
 }
 
 @media (max-width: 700px) {
-    .call-app {
-        grid-template-columns: 1fr;
-    }
-
-    .call-sidebar {
-        display: none;
-    }
-
-    .remote-avatar {
-        width: 120px;
-        height: 120px;
-    }
-
     .control {
         width: 64px;
     }
@@ -554,9 +598,5 @@ body {
     .control svg {
         width: 46px;
         height: 46px;
-    }
-
-    .participants-strip {
-        padding-bottom: 8px;
     }
 }

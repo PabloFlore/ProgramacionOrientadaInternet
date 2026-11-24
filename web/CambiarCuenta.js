@@ -409,7 +409,7 @@ confirmarPassword.addEventListener(
 // GUARDAR CAMBIOS
 
 const API_CUENTA =
-    `http://${window.location.hostname || "localhost"}:5000`;
+    `https://${window.location.hostname || "localhost"}:5000`;
 
 const CLAVE_SESION = "musicHubUsuario";
 

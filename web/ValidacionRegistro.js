@@ -21,27 +21,9 @@ function guardarSesion(usuario) {
     );
 }
 
-function leerSesion() {
-    const datos = sessionStorage.getItem(CLAVE_SESION);
-
-    if (!datos) {
-        return null;
-    }
-
-    try {
-        return JSON.parse(datos);
-    } catch (error) {
-        return null;
-    }
-}
-
-function borrarSesion() {
-    sessionStorage.removeItem(CLAVE_SESION);
-}
-
 /* -------------------- Utilidades -------------------- */
 
-const API = `http://${window.location.hostname || "localhost"}:5000`;
+const API = `https://${window.location.hostname || "localhost"}:5000`;
 
 async function pedir(url, metodo, cuerpo) {
     const respuesta = await fetch(url, {

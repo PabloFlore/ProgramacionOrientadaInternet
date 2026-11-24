@@ -19,4 +19,9 @@ public class Conversacion
     public DateTime UltimaFecha { get; set; }
 
     public int? UltimoUsuarioId { get; set; }
+
+    public bool UltimoCifrado { get; set; }
+
+    /// <summary>"texto", "ubicacion" o "archivo" del último mensaje.</summary>
+    public string UltimoTipo { get; set; } = "texto";
 }

@@ -1,6 +1,10 @@
 .vs/
 
 # Base de datos local de SQLite (correos, hashes y sales de usuarios)
+# server/ChatServer/data/ es la carpeta donde vive chat.db (historial completo).
+server/ChatServer/data/
+# Certificados HTTPS y clave privada de la CA local. No se versionan.
+server/ChatServer/certs/
 *.db
 *.db-shm
 *.db-wal

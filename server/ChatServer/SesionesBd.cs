@@ -13,13 +13,10 @@ public static class SesionesBd
 {
     private const int DuracionDias = 7;
 
-    private static readonly string RutaBd =
-        Path.Combine(AppContext.BaseDirectory, "chat.db");
-
     private static string CadenaConexion =>
         new SqliteConnectionStringBuilder
         {
-            DataSource = RutaBd,
+            DataSource = RutaDatos.Archivo,
             Mode = SqliteOpenMode.ReadWriteCreate
         }.ToString();
 

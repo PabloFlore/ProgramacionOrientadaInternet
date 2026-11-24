@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Music Hub</title>
-    <link rel="stylesheet" href="Home.css?v=7">
+    <link rel="stylesheet" href="Home.css?v=19">
 </head>
 
 <body>
@@ -17,46 +17,9 @@
 
     <div class="app">
         <aside class="chat-sidebar">
-            <div class="sidebar-title">
-                Chats
-            </div>
-            <div class="chat-list">
-                <button class="chat-icon active"
-                        data-chat="amigos">
-                    <img src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
-                         alt="Amigo">
-                    <span class="chat-tooltip">
-                        Arinator
-                    </span>
-                </button>
-
-                <button class="chat-icon"
-                        data-chat="gaming">
-                    <img src="https://i.pinimg.com/1200x/0b/de/25/0bde25514b531ada811674223955fc04.jpg"
-                         alt="Grupo">
-                    <span class="chat-tooltip">
-                        Twenty One Pilots se robo mi radio
-                    </span>
-                </button>
-
-                <button class="chat-icon"
-                        data-chat="universidad">
-                    <img src="https://i.pinimg.com/736x/01/39/d9/0139d91c48aeaf302e28121a46093b34.jpg"
-                         alt="Amigo">
-                    <span class="chat-tooltip">
-                        Nedsito
-                    </span>
-                </button>
-
-                <button class="chat-icon"
-                        data-chat="proyecto">
-                    <img src="https://i.pinimg.com/1200x/6e/44/81/6e44814a20c65645359c3731e49bbf43.jpg"
-                         alt="Grupo">
-                    <span class="chat-tooltip">
-                        Aquí amamos a Josh Dun
-                    </span>
-                </button>
-            </div>
+            <!-- Se quitaron los canales fijos (amigos, gaming, universidad,
+                 proyecto). La barra se llena con los mensajes privados y los
+                 grupos que vienen del servidor. -->
 
             <div class="sidebar-title private-title">
                 <span>Mensajes privados</span>
@@ -76,137 +39,253 @@
             <div class="private-list"
                  id="privateList">
             </div>
+
+            <div class="sidebar-title private-title">
+                <span>Grupos</span>
+                <button type="button"
+                        id="newGroupButton"
+                        class="new-dm-button"
+                        title="Nuevo grupo">
+                    +
+                </button>
+            </div>
+
+            <div class="group-create"
+                 id="groupCreate"
+                 hidden>
+                <input type="text"
+                       id="groupName"
+                       maxlength="60"
+                       placeholder="Nombre del grupo">
+                <input type="url"
+                       id="groupLink"
+                       maxlength="500"
+                       placeholder="Enlace de retos (opcional)">
+                <p class="group-hint">
+                    Elige integrantes (mínimo 3 contándote a ti). Si dejas el
+                    enlace vacío, el grupo será solo chat; puedes agregarlo después.
+                </p>
+                <div class="group-contacts"
+                     id="groupContacts"></div>
+                <p class="group-hint"
+                   id="groupCount">Integrantes: 1</p>
+                <p class="group-error"
+                   id="groupError"></p>
+                <button type="button"
+                        id="groupCreateButton"
+                        class="group-create-button">
+                    Crear grupo
+                </button>
+            </div>
+
+            <div class="private-list"
+                 id="groupList">
+            </div>
         </aside>
 
         <main class="chat-area">
             <header class="chat-header">
-                <div class="current-chat">
-                    <img id="currentChatImage"
-                         src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
-                         alt="Chat">
-                    <div>
+            <div class="current-chat">
+                <img id="currentChatImage"
+                     src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='24' fill='%23161b24'/%3E%3Ccircle cx='24' cy='18' r='7' fill='%235b6577'/%3E%3Cpath d='M10 41c0-8 6.3-13 14-13s14 5 14 13z' fill='%235b6577'/%3E%3C/svg%3E"
+                     alt="Chat"
+                     hidden>
+                <div>
+                    <div class="current-chat-title-row">
                         <h2 id="currentChatName">
-                            Arinator
+                            Selecciona un chat
                         </h2>
-                        <span id="currentChatStatus">
-                            2 integrantes
-                        </span>
+                        <span id="currentChatPresence" class="status-dot" hidden></span>
+                    </div>
+                    <span id="currentChatStatus"></span>
+                </div>
+            </div>
+
+                <button type="button"
+                        id="groupMembersButton"
+                        class="group-members-button"
+                        hidden>
+                    Integrantes
+                </button>
+
+                <button type="button"
+                        id="videoCallButton"
+                        class="video-call-button"
+                        title="Iniciar videollamada"
+                        hidden>
+                    Videollamada
+                </button>
+
+                <button type="button"
+                        id="chatEmailButton"
+                        class="email-chat-button"
+                        title="Enviar correo al otro usuario"
+                        hidden>
+                    Enviar correo
+                </button>
+
+                <button type="button"
+                        id="cifradoButton"
+                        class="cifrado-button"
+                        role="switch"
+                        aria-checked="false"
+                        title="Cifrado extremo a extremo"
+                        hidden>
+                    <svg class="cifrado-icon"
+                         viewBox="0 0 24 24"
+                         aria-hidden="true">
+                        <path d="M7 10V8a5 5 0 0 1 10 0v2"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"/>
+                        <rect x="4" y="10" width="16" height="11"
+                              rx="2"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"/>
+                    </svg>
+                    <span class="cifrado-label">Cifrado</span>
+                </button>
+
+                <button type="button"
+                        id="deleteChatButton"
+                        class="delete-chat-button"
+                        title="Borrar todo el chat"
+                        aria-label="Borrar todo el chat"
+                        hidden>
+                    <svg class="delete-chat-icon"
+                         viewBox="0 0 24 24"
+                         aria-hidden="true">
+                        <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v6M14 11v6"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"/>
+                    </svg>
+                    <span>Borrar</span>
+                </button>
+            </header>
+
+            <!-- PANEL DE INTEGRANTES DEL GRUPO (solo en chats de grupo) -->
+
+            <section class="group-panel"
+                     id="groupPanel"
+                     hidden>
+                <div class="group-panel-head">
+                    <strong>Integrantes</strong>
+                    <span id="groupPanelCount"></span>
+                </div>
+                <div id="groupPanelList"></div>
+
+                <div class="group-panel-add">
+                    <p class="group-hint">Agregar integrantes</p>
+                    <div class="group-contacts"
+                         id="groupAddContacts"></div>
+                    <button type="button"
+                            id="groupAddButton"
+                            class="group-create-button">
+                        Agregar seleccionados
+                    </button>
+                </div>
+                <p class="group-error"
+                   id="groupPanelError"></p>
+
+                <div class="group-rewards"
+                     id="groupRewards"
+                     hidden>
+                    <div class="group-rewards-head">
+                        <strong>Recompensas del grupo</strong>
+                        <span id="rewardProgress"></span>
+                    </div>
+
+                    <div class="reward-slots"
+                         id="rewardSlots"></div>
+
+                    <p class="reward-error"
+                       id="rewardError"
+                       hidden></p>
+
+                    <div class="reward-config">
+                        <button type="button"
+                                id="attachCardsButton"
+                                class="group-create-button"
+                                hidden>
+                            Adjuntar 3 cartas
+                        </button>
+
+                        <div class="reward-picker"
+                             id="rewardPicker"
+                             hidden></div>
+
+                        <input type="url"
+                               id="rewardLink"
+                               maxlength="500"
+                               placeholder="https://pagina-de-la-recompensa"
+                               hidden>
+
+                        <button type="button"
+                                id="saveRewardConfig"
+                                class="group-create-button"
+                                hidden>
+                            Guardar cartas y enlace
+                        </button>
+
+                        <button type="button"
+                                id="visitRewardPage"
+                                class="group-create-button visit-reward"
+                                hidden>
+                            Visitar pagina
+                        </button>
                     </div>
                 </div>
-
-                <a href="Videollamada.html"
-                   class="video-call-button"
-                   title="Iniciar videollamada">
-                    Videollamada
-                </a>
-            </header>
+            </section>
 
             <!-- MENSAJES -->
 
             <section class="messages"
                      id="messages">
-                <!-- MENSAJES SEMILLA COMENTADOS (Fase 1: el chat arranca limpio;
-                     descomenta para volver a verlos) -->
-                <!--
-                <div class="message received">
-                    <img src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
-                         alt="Arinator">
-                    <div class="message-content">
-                        <strong>
-                            Arinator
-                        </strong>
-                        <p>
-                            Lorem ipsum dolor sit amet
-                        </p>
-                    </div>
+                <div class="load-more-wrap">
+                    <button type="button" id="loadMoreMessages" class="load-more-btn" hidden>
+                        Cargar más mensajes
+                    </button>
                 </div>
-
-                <div class="message sent">
-                    <div class="message-content">
-                        <p>
-                            Lorem ipsum dolor sit amet
-                        </p>
-                    </div>
-                </div>
-
-                <div class="message received">
-                    <img src="https://i.pinimg.com/736x/e8/11/c3/e811c31c34cd0789d5f35939a065802c.jpg"
-                         alt="Arinator">
-                    <div class="message-content">
-                        <strong>
-                            Arinator
-                        </strong>
-                        <p>
-                            Lorem ipsum dolor sit amet
-                        </p>
-                    </div>
-                </div>
-                -->
             </section>
 
-            <!-- TAREAS -->
+            <!-- TAREAS DEL GRUPO -->
 
-            <section class="tasks">
+            <section class="tasks"
+                     id="tasksPanel"
+                     hidden>
                 <div class="tasks-header">
-                    <h3>
-                        Tareas pendientes
-                    </h3>
-                    <span>
-                        2 tareas
-                    </span>
+                    <div>
+                        <h3>
+                            Retos del grupo
+                        </h3>
+                        <span id="tasksCount">
+                            0 tareas
+                        </span>
+                    </div>
+                    <button type="button"
+                            id="visitPageButton"
+                            class="task-visit"
+                            hidden>
+                        Visitar pagina
+                    </button>
                 </div>
 
-                <div class="task"
-                     id="task1">
-                    <div class="task-info">
-                        <span class="task-number">
-                            1
-                        </span>
-                        <div>
-                            <strong>
-                                Vota por Twenty One Pilots en los VMAs
-                            </strong>
-                            <p>
-                                Hazlo no seas gacho
-                            </p>
-                        </div>
-                    </div>
-                    <a href="https://t.co/154OLE5e6M"
-                       target="_blank"
-                       class="task-link"
-                       data-task="task1">
-                        Abrir enlace
-                    </a>
-                    <span class="task-status">
-                        Pendiente
-                    </span>
-                </div>
+                <p class="task-help">
+                    Cada integrante tiene 3 retos: enviar un mensaje, subir una
+                    imagen y compartir su ubicación. Al completarlos, gana 2
+                    photocards; la última se desbloquea con el enlace del grupo.
+                </p>
 
-                <div class="task"
-                     id="task2">
-                    <div class="task-info">
-                        <span class="task-number">
-                            2
-                        </span>
-                        <div>
-                            <strong>
-                                Entra a la playlist del grupo
-                            </strong>
-                            <p>
-                                Esta muy chida la hice yo :)
-                            </p>
-                        </div>
-                    </div>
-                    <a href="https://open.spotify.com/playlist/7jyxu1xZluI1bRl2WbkluO?si=3a1aa91e8c734b99"
-                       target="_blank"
-                       class="task-link"
-                       data-task="task2">
-                        Abrir enlace
-                    </a>
-                    <span class="task-status">
-                        Pendiente
-                    </span>
-                </div>
+                <p class="task-error"
+                   id="taskError"
+                   hidden></p>
+
+                <div id="tasksList"></div>
             </section>
 
             <!-- SESIÓN: ya no se pide alias, se usa la cuenta
@@ -221,7 +300,41 @@
             <p class="alias-inline-error"
                id="aliasError"></p>
 
+            <p class="cifrado-aviso"
+               id="cifradoAviso"
+               hidden></p>
+
             <div class="message-input">
+                <button type="button"
+                        id="attachButton"
+                        class="attach-button"
+                        title="Adjuntar archivo (texto o imagen, máx. 2 MB)"
+                        aria-label="Adjuntar archivo"
+                        disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                              fill="none" stroke="currentColor" stroke-width="2"
+                              stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <input type="file"
+                       id="fileInput"
+                       accept=".txt,.md,.csv,.json,.log,.jpg,.jpeg,.png,.webp,.gif"
+                       hidden>
+                <button type="button"
+                        id="locationButton"
+                        class="location-button"
+                        title="Compartir mi ubicación"
+                        aria-label="Compartir mi ubicación"
+                        disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11z"
+                              fill="none" stroke="currentColor" stroke-width="2"
+                              stroke-linejoin="round"/>
+                        <circle cx="12" cy="10" r="2.5"
+                                fill="none" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
                 <input type="text"
                        id="messageInput"
                        placeholder="Escribe un mensaje..."
@@ -235,13 +348,20 @@
 
         <aside class="profile">
             <div class="profile-top">
-                <div class="profile-title">
+                <div class="profile-title" id="profileTitle">
                     Mi perfil
                 </div>
                 <a href="CambiarCuenta.html"
-                   class="change-profile">
+                   class="change-profile"
+                   id="changeProfileLink">
                     Cambiar Perfil
                 </a>
+                <button type="button"
+                        id="volverPerfilButton"
+                        class="volver-perfil"
+                        hidden>
+                    Volver a mi perfil
+                </button>
             </div>
 
             <div class="profile-banner"
@@ -259,31 +379,21 @@
                 <p class="username" id="profileUsername">
                     @...
                 </p>
+                <p class="user-email" id="profileEmail"></p>
+                <button type="button" id="enviarCorreoButton" class="email-button">
+                    Enviar correo
+                </button>
             </div>
 
             <!-- Coleccion -->
 
             <div class="pokemon-card-section">
-                <h3>
+                <h3 id="coleccionTitle">
                     Mi colección
                 </h3>
-                <div class="pokemon-display">
-                    <button class="pokemon-card"
-                            data-card="0">
-                        <img src="https://i.pinimg.com/736x/48/62/47/486247923ba212d2f45d47ff1b81f69d.jpg"
-                             alt="Alcremie">
-                    </button>
-                    <button class="pokemon-card"
-                            data-card="1">
-                        <img src="https://i.pinimg.com/736x/78/41/23/784123912a27a92f01d8597d1d32b069.jpg"
-                             alt="Clefairy">
-                    </button>
-                    <button class="pokemon-card"
-                            data-card="2">
-                        <img src="https://i.pinimg.com/736x/a4/6e/fc/a46efc5422e919ce3c8176ab3a543785.jpg"
-                             alt="Sylveon">
-                    </button>
-                </div>
+                <p class="card-help" id="cartasProgreso"></p>
+                <div class="pokemon-display"
+                     id="pokemonDisplay"></div>
             </div>
         </aside>
     </div>
@@ -298,10 +408,19 @@
                 ×
             </button>
 
+            <h3 class="card-modal-title" id="cardModalTitle">
+                Mi colección
+            </h3>
+
+            <div class="card-modal-info">
+                <span id="cardCounter"></span>
+                <span id="cardMeta"></span>
+            </div>
+
             <div class="large-card-container">
                 <img id="largeCard"
                      src=""
-                     alt="Carta Pokémon">
+                     alt="Carta de recompensa">
             </div>
             <button class="card-navigation previous"
                     id="previousCard">
@@ -312,23 +431,99 @@
                 ›
             </button>
 
-            <div class="card-indicators">
-                <span class="card-indicator active"
-                      data-indicator="0">
-                </span>
-                <span class="card-indicator"
-                      data-indicator="1">
-                </span>
-                <span class="card-indicator"
-                      data-indicator="2">
-                </span>
+            <div class="card-indicators"
+                 id="cardIndicators"></div>
+        </div>
+    </div>
+
+    <!-- MODAL ENVIAR CORREO -->
+
+    <div class="email-modal"
+         id="emailModal"
+         hidden>
+        <div class="email-modal-card"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="emailModalTitle">
+            <button type="button"
+                    class="email-modal-close"
+                    id="closeEmailModal"
+                    aria-label="Cerrar">
+                ×
+            </button>
+
+            <h2 id="emailModalTitle">Enviar correo</h2>
+            <p class="email-modal-hint" id="emailModalHint">
+                Elige a otro usuario registrado. El correo se enviará a la
+                dirección de su cuenta.
+            </p>
+
+            <label for="emailRecipient">Para</label>
+            <select id="emailRecipient"></select>
+
+            <label for="emailSubject">Asunto</label>
+            <input type="text"
+                   id="emailSubject"
+                   maxlength="200"
+                   autocomplete="off"
+                   placeholder="Asunto del correo">
+
+            <label for="emailBody">Mensaje</label>
+            <textarea id="emailBody"
+                      rows="6"
+                      maxlength="5000"
+                      placeholder="Escribe tu mensaje"></textarea>
+
+            <p class="email-error"
+               id="emailError"
+               hidden></p>
+            <p class="email-success"
+               id="emailSuccess"
+               hidden></p>
+
+            <div class="email-modal-actions">
+                <button type="button"
+                        class="email-cancel"
+                        id="cancelEmailButton">
+                    Cancelar
+                </button>
+                <button type="button"
+                        class="email-send"
+                        id="sendEmailButton">
+                    Enviar correo
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Librerías + lógica (con ?v=6 para evitar caché viejo del celular) -->
+    <!-- AVISO DE VIDEOLLAMADA ENTRANTE -->
+
+    <div class="incoming-call"
+         id="incomingCall"
+         hidden>
+        <div class="incoming-call-card">
+            <p class="incoming-call-title">Videollamada entrante</p>
+            <strong id="incomingCallName"></strong>
+            <div class="incoming-call-actions">
+                <button type="button"
+                        id="rejectCallButton"
+                        class="incoming-reject">
+                    Rechazar
+                </button>
+                <button type="button"
+                        id="acceptCallButton"
+                        class="incoming-accept">
+                    Contestar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Librerías + lógica. Al cambiar Home.js, sube su ?v= para evitar caché viejo. -->
 
     <script src="libs/signalr.min.js?v=7"></script>
-    <script src="Home.js?v=10"></script>
+    <script src="cifrado.js?v=2"></script>
+    <script src="cartas.js?v=1"></script>
+    <script src="Home.js?v=26"></script>
 </body>
 </html>

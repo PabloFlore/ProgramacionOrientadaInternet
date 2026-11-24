@@ -21,13 +21,10 @@ public static class UsuariosBd
         Id, Nombre, Apellido, Usuario, Correo,
         HashContrasena, Sal, FechaRegistro";
 
-    private static readonly string RutaBd =
-        Path.Combine(AppContext.BaseDirectory, "chat.db");
-
     private static string CadenaConexion =>
         new SqliteConnectionStringBuilder
         {
-            DataSource = RutaBd,
+            DataSource = RutaDatos.Archivo,
             Mode = SqliteOpenMode.ReadWriteCreate
         }.ToString();
 
@@ -54,14 +51,16 @@ public static class UsuariosBd
                     Sal             TEXT NOT NULL,
                     FechaRegistro   TEXT NOT NULL,
                     FotoPerfil      TEXT NULL,
-                    Banner          TEXT NULL
+                    Banner          TEXT NULL,
+                    ClavePublica    TEXT NULL
                 );
             ";
             comando.ExecuteNonQuery();
         }
 
-        /* Migración: bases creadas antes no tienen las columnas de imagen. */
-        foreach (var columna in new[] { "FotoPerfil", "Banner" })
+        /* Migración: bases creadas antes no tienen las columnas de imagen
+           ni la clave pública de cifrado extremo a extremo. */
+        foreach (var columna in new[] { "FotoPerfil", "Banner", "ClavePublica" })
         {
             if (!TieneColumna(conexion, "Usuarios", columna))
             {
@@ -292,7 +291,9 @@ public static class UsuariosBd
     ///   cierran las demás sesiones del usuario (se conserva tokenActual).
     /// - foto / banner: null = no cambian; "" = se quitan; otro valor =
     ///   nueva data URL.
-    /// Devuelve false si el correo ya pertenece a otra cuenta.
+    /// Devuelve false si el correo ya pertenece a otra cuenta. En
+    /// sesionesRevocadas deja los tokens cerrados para que la API avise a
+    /// sus conexiones SignalR.
     /// </summary>
     public static bool ActualizarCuenta(
         int id,
@@ -303,8 +304,11 @@ public static class UsuariosBd
         (string Hash, string Sal)? nuevaClave,
         string? foto,
         string? banner,
-        string tokenActual)
+        string tokenActual,
+        out List<string> sesionesRevocadas)
     {
+        sesionesRevocadas = new List<string>();
+
         using var conexion = new SqliteConnection(CadenaConexion);
         conexion.Open();
 
@@ -357,6 +361,23 @@ public static class UsuariosBd
 
             if (nuevaClave is not null)
             {
+                using var leerOtras = conexion.CreateCommand();
+                leerOtras.Transaction = transaccion;
+                leerOtras.CommandText = @"
+                    SELECT Token FROM Sesiones
+                    WHERE UsuarioId = $id AND Token <> $actual;
+                ";
+                leerOtras.Parameters.AddWithValue("$id", id);
+                leerOtras.Parameters.AddWithValue("$actual", tokenActual);
+
+                using (var lector = leerOtras.ExecuteReader())
+                {
+                    while (lector.Read())
+                    {
+                        sesionesRevocadas.Add(lector.GetString(0));
+                    }
+                }
+
                 using var cerrarOtras = conexion.CreateCommand();
                 cerrarOtras.Transaction = transaccion;
                 cerrarOtras.CommandText = @"
@@ -381,6 +402,46 @@ public static class UsuariosBd
 
     private static object ValorONulo(string valor) =>
         valor == "" ? DBNull.Value : valor;
+
+    /* -------------------- Cifrado extremo a extremo -------------------- */
+
+    /// <summary>
+    /// Clave pública ECDH P-256 del usuario (SPKI en base64), o null si
+    /// todavía no abrió ninguna vez el chat con cifrado.
+    /// </summary>
+    public static string? ObtenerClavePublica(int id)
+    {
+        using var conexion = new SqliteConnection(CadenaConexion);
+        conexion.Open();
+
+        using var comando = conexion.CreateCommand();
+        comando.CommandText = @"
+            SELECT ClavePublica FROM Usuarios WHERE Id = $id LIMIT 1;
+        ";
+        comando.Parameters.AddWithValue("$id", id);
+
+        var valor = comando.ExecuteScalar();
+        return valor is null or DBNull ? null : (string)valor;
+    }
+
+    /// <summary>
+    /// Publica o reemplaza la clave pública del usuario. Si cambia de
+    /// dispositivo, la nueva clave sustituye a la anterior.
+    /// </summary>
+    public static bool GuardarClavePublica(int id, string clavePublica)
+    {
+        using var conexion = new SqliteConnection(CadenaConexion);
+        conexion.Open();
+
+        using var comando = conexion.CreateCommand();
+        comando.CommandText = @"
+            UPDATE Usuarios SET ClavePublica = $clave WHERE Id = $id;
+        ";
+        comando.Parameters.AddWithValue("$clave", clavePublica);
+        comando.Parameters.AddWithValue("$id", id);
+
+        return comando.ExecuteNonQuery() > 0;
+    }
 
     /// <summary>PBKDF2-SHA256: devuelve (hash, sal) en Base64. Nada en texto plano.</summary>
     public static (string Hash, string Sal) CrearHashContrasena(
